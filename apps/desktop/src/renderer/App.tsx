@@ -113,6 +113,7 @@ export function App() {
   const [includeAllComponents, setIncludeAllComponents] = useState(true);
   const [includeExamples, setIncludeExamples] = useState(false);
   const [pruneUnusedComponents, setPruneUnusedComponents] = useState(true);
+  const [preferSourceOperation, setPreferSourceOperation] = useState(true);
   const [savedExportPath, setSavedExportPath] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -188,7 +189,8 @@ export function App() {
       includeResponseExamples: true,
       includeBearerJwtSecurityScheme: true,
       includeAllComponents,
-      pruneUnusedComponents
+      pruneUnusedComponents,
+      preferSourceOperation
     });
     return {
       content: result.content,
@@ -201,6 +203,7 @@ export function App() {
     exportFormat,
     includeAllComponents,
     includeExamples,
+    preferSourceOperation,
     pruneUnusedComponents
   ]);
 
@@ -926,11 +929,13 @@ export function App() {
             includeAllComponents={includeAllComponents}
             includeExamples={includeExamples}
             pruneUnusedComponents={pruneUnusedComponents}
+            preferSourceOperation={preferSourceOperation}
             onExportFolderIdsChange={setExportFolderIds}
             onExportFormatChange={setExportFormat}
             onIncludeAllComponentsChange={setIncludeAllComponents}
             onIncludeExamplesChange={setIncludeExamples}
             onPruneUnusedComponentsChange={setPruneUnusedComponents}
+            onPreferSourceOperationChange={setPreferSourceOperation}
             onSave={saveExport}
             savedExportPath={savedExportPath}
           />
@@ -1785,12 +1790,14 @@ function ExportScreen({
   includeAllComponents,
   includeExamples,
   pruneUnusedComponents,
+  preferSourceOperation,
   savedExportPath,
   onExportFormatChange,
   onExportFolderIdsChange,
   onIncludeAllComponentsChange,
   onIncludeExamplesChange,
   onPruneUnusedComponentsChange,
+  onPreferSourceOperationChange,
   onSave
 }: {
   activeCollection?: Collection;
@@ -1802,12 +1809,14 @@ function ExportScreen({
   includeAllComponents: boolean;
   includeExamples: boolean;
   pruneUnusedComponents: boolean;
+  preferSourceOperation: boolean;
   savedExportPath: string;
   onExportFormatChange(format: ExportFormat): void;
   onExportFolderIdsChange(folderIds: string[]): void;
   onIncludeAllComponentsChange(value: boolean): void;
   onIncludeExamplesChange(value: boolean): void;
   onPruneUnusedComponentsChange(value: boolean): void;
+  onPreferSourceOperationChange(value: boolean): void;
   onSave(): void;
 }) {
   const folders = activeCollection ? flattenFolders(activeCollection) : [];
@@ -1881,6 +1890,15 @@ function ExportScreen({
             type="checkbox"
           />
           <span>Include example values (may contain secrets)</span>
+        </label>
+        <label className="check-row">
+          <input
+            checked={preferSourceOperation}
+            disabled={!isOpenApi}
+            onChange={(event) => onPreferSourceOperationChange(event.target.checked)}
+            type="checkbox"
+          />
+          <span>Preserve imported operation details (schemas, security, deprecated)</span>
         </label>
         <button className="primary-button" disabled={!activeCollection} onClick={onSave} type="button">
           <Save size={16} />

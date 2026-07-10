@@ -8,6 +8,7 @@ import type {
   ResponseExample
 } from "../../model/types";
 import { findFolder, flattenRequests } from "../../model/traversal";
+import { resolveLocalRef } from "../../importers/shared";
 
 export type OpenApiExportFormat = "yaml" | "json";
 
@@ -30,6 +31,14 @@ export interface OpenApiExportOptions {
    * those values often hold real secrets used while testing.
    */
   includeParameterExamples?: boolean;
+  /**
+   * When a request was imported from OpenAPI 3.x, export its operation from
+   * the stored source operation and overlay only the user's edits. Preserves
+   * parameter schemas (enum/format/pattern), response schemas, security
+   * scopes, and fields like `deprecated` that the app does not model.
+   * Defaults to true.
+   */
+  preferSourceOperation?: boolean;
 }
 
 export type ExportWarningKind = "secret" | "conflict" | "invalid-path" | "invalid-server";
@@ -112,19 +121,9 @@ export function exportCollectionToOpenApiDocument(
 
     const tags = tagsForRequest(collection, item, options);
     tags.forEach((tag) => tagNames.add(tag));
-    const authSecurity = securityForAuth(item.request.auth, components, options);
 
     const pathItem = (paths[path] ?? {}) as AnyRecord;
-    pathItem[method] = {
-      summary: item.request.name,
-      description: item.request.description,
-      operationId: item.request.openApi?.operationId,
-      tags,
-      parameters: parametersForRequest(item.request, options),
-      requestBody: requestBodyForRequest(item.request, options),
-      responses: responsesForRequest(item.request, options),
-      security: authSecurity.length > 0 ? authSecurity : undefined
-    };
+    pathItem[method] = operationForRequest(item.request, tags, collection, components, options);
     paths[path] = stripUndefined(pathItem);
   }
 
@@ -262,6 +261,168 @@ function tagsForRequest(
     return item.request.openApi.tags;
   }
   return [item.folderPath[item.folderPath.length - 1]?.name ?? collection.name];
+}
+
+function operationForRequest(
+  request: ApiRequest,
+  tags: string[],
+  collection: Collection,
+  components: AnyRecord,
+  options: OpenApiExportOptions
+): AnyRecord {
+  const raw = sourceOperation(request, options);
+
+  if (!raw) {
+    const authSecurity = securityForAuth(request.auth, components, options);
+    return {
+      summary: request.name,
+      description: request.description,
+      operationId: request.openApi?.operationId,
+      tags,
+      parameters: parametersForRequest(request, options),
+      requestBody: requestBodyForRequest(request, options),
+      responses: responsesForRequest(request, options),
+      security: authSecurity.length > 0 ? authSecurity : undefined
+    };
+  }
+
+  // Fidelity mode: start from the imported operation so schemas, response
+  // definitions, security scopes, and unmodeled fields (deprecated,
+  // externalDocs, callbacks, ...) survive the round trip, then overlay the
+  // fields the app lets the user edit.
+  const operation = structuredClone(raw);
+  operation.summary = request.name;
+  operation.description = request.description ?? operation.description;
+  operation.operationId = request.openApi?.operationId ?? operation.operationId;
+  operation.tags = tags;
+  operation.parameters = mergeParameters(request, asArrayValue(raw.parameters), collection, options);
+
+  if (request.body.mode === "none") {
+    delete operation.requestBody;
+  } else if (!isRecordValue(operation.requestBody)) {
+    operation.requestBody = requestBodyForRequest(request, options);
+  } else if (options.includeRequestExamples && request.body.raw) {
+    refreshBodyExample(operation.requestBody as AnyRecord, request.body.raw);
+  }
+
+  if (!isRecordValue(operation.responses) || Object.keys(operation.responses as AnyRecord).length === 0) {
+    operation.responses = responsesForRequest(request, options);
+  }
+
+  if (Array.isArray(operation.security) && operation.security.length > 0) {
+    // Original security requirements win (they keep OAuth2 scopes the app
+    // cannot model); make sure the schemes they reference are exported too.
+    copyReferencedSecuritySchemes(operation.security, collection, components);
+  } else {
+    const authSecurity = securityForAuth(request.auth, components, options);
+    if (authSecurity.length > 0) {
+      operation.security = authSecurity;
+    }
+  }
+
+  return operation;
+}
+
+function sourceOperation(request: ApiRequest, options: OpenApiExportOptions): AnyRecord | undefined {
+  if (options.preferSourceOperation === false) {
+    return undefined;
+  }
+  if (request.openApi?.sourceFormat !== "openapi3") {
+    return undefined;
+  }
+  const raw = request.openApi.rawOperation;
+  return isRecordValue(raw) && Object.keys(raw).length > 0 ? (raw as AnyRecord) : undefined;
+}
+
+/**
+ * Keep the original parameter objects (including $refs) for parameters that
+ * still exist by name+location, synthesize objects for user-added ones, and
+ * drop originals the user deleted or disabled.
+ */
+function mergeParameters(
+  request: ApiRequest,
+  rawParameters: unknown[],
+  collection: Collection,
+  options: OpenApiExportOptions
+): AnyRecord[] {
+  const pseudoDocument: AnyRecord = { components: asRecord(collection.openApi?.components) };
+  const originals = rawParameters.map((parameter) => ({
+    raw: parameter,
+    resolved: asRecord(resolveLocalRef(pseudoDocument, parameter))
+  }));
+  const findOriginal = (name: string, location: string) =>
+    originals.find(
+      ({ resolved }) => resolved.name === name && resolved.in === location
+    );
+
+  const result: AnyRecord[] = [];
+  const emit = (item: KeyValue, location: string, required: boolean) => {
+    const original = findOriginal(item.key, location);
+    if (original) {
+      result.push(original.raw as AnyRecord);
+    } else {
+      result.push(parameterObject(item, location, required, options));
+    }
+  };
+
+  for (const item of request.pathParams.filter(isEnabledKeyValue)) {
+    emit(item, "path", true);
+  }
+  for (const item of request.queryParams.filter(isEnabledKeyValue)) {
+    emit(item, "query", false);
+  }
+  for (const item of request.headers.filter(isEnabledKeyValue)) {
+    const key = item.key.toLowerCase();
+    if (key === "content-type" || key === "authorization") {
+      continue;
+    }
+    emit(item, "header", false);
+  }
+  return result;
+}
+
+/** Update the example of the first JSON-like media type with the edited body. */
+function refreshBodyExample(requestBody: AnyRecord, rawBody: string): void {
+  const content = asRecord(requestBody.content);
+  const jsonKey =
+    Object.keys(content).find((key) => key.includes("json")) ?? Object.keys(content)[0];
+  if (!jsonKey) {
+    return;
+  }
+  const media = asRecord(content[jsonKey]);
+  media.example = parseJsonOrString(rawBody);
+  content[jsonKey] = media;
+  requestBody.content = content;
+}
+
+function copyReferencedSecuritySchemes(
+  security: unknown[],
+  collection: Collection,
+  components: AnyRecord
+): void {
+  const knownSchemes = asRecord(collection.openApi?.securitySchemes);
+  if (Object.keys(knownSchemes).length === 0) {
+    return;
+  }
+  const securitySchemes = ensureSecuritySchemes(components);
+  for (const requirement of security) {
+    if (typeof requirement !== "object" || requirement === null) {
+      continue;
+    }
+    for (const name of Object.keys(requirement as AnyRecord)) {
+      if (knownSchemes[name] !== undefined && securitySchemes[name] === undefined) {
+        securitySchemes[name] = knownSchemes[name];
+      }
+    }
+  }
+}
+
+function isRecordValue(value: unknown): value is AnyRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function asArrayValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
 function parametersForRequest(request: ApiRequest, options: OpenApiExportOptions): AnyRecord[] {
@@ -425,7 +586,12 @@ function pruneUnusedComponents(paths: AnyRecord, components: AnyRecord): AnyReco
   }
 
   const reachable = new Set<string>();
-  const queue = collectSchemaRefNames(paths);
+  // Seed from the paths AND every non-schema component section that ships in
+  // the export (parameters/responses/... may hold $refs into schemas).
+  const nonSchemaSections = Object.entries(components)
+    .filter(([key]) => key !== "schemas")
+    .map(([, value]) => value);
+  const queue = collectSchemaRefNames([paths, nonSchemaSections]);
   while (queue.length > 0) {
     const name = queue.pop() as string;
     if (reachable.has(name) || !(name in schemas)) {
