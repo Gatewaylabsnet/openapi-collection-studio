@@ -20,7 +20,7 @@ import {
   createJwtRequest,
   createKeyValue,
   createRequest,
-  exportCollectionToOpenApi,
+  exportCollectionToOpenApiResult,
   findFolder,
   findRequest,
   flattenFolders,
@@ -35,6 +35,7 @@ import {
   type Collection,
   type Environment,
   type EnvironmentVariable,
+  type ExportWarning,
   type GroupingStrategy,
   type HttpMethod,
   type KeyValue,
@@ -43,11 +44,23 @@ import {
 import { CollectionTree } from "./components/CollectionTree";
 import { KeyValueEditor } from "./components/KeyValueEditor";
 
-type Screen = "home" | "import" | "editor" | "environments" | "export";
+type Screen = "home" | "import" | "editor" | "environments" | "export" | "settings";
 type RequestTab = "params" | "auth" | "headers" | "body";
 type ResponseTab = "body" | "headers" | "raw";
 type ExportFormat = "openapi-yaml" | "openapi-json" | "collection-json";
 type SaveStatus = "saved" | "dirty" | "saving" | "error";
+
+interface AppSettings {
+  requestTimeoutMs: number;
+  maxResponseBytes: number;
+  allowInsecureTls: boolean;
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  requestTimeoutMs: 30_000,
+  maxResponseBytes: 10 * 1024 * 1024,
+  allowInsecureTls: false
+};
 
 interface ResponseState {
   status: number;
@@ -57,6 +70,7 @@ interface ResponseState {
   headers: Record<string, string>;
   body: string;
   rawBody: string;
+  truncated?: boolean;
   error?: string;
 }
 
@@ -79,20 +93,28 @@ export function App() {
   const [exportFormat, setExportFormat] = useState<ExportFormat>("openapi-yaml");
   const [exportFolderIds, setExportFolderIds] = useState<string[]>([]);
   const [includeAllComponents, setIncludeAllComponents] = useState(true);
+  const [includeExamples, setIncludeExamples] = useState(false);
+  const [pruneUnusedComponents, setPruneUnusedComponents] = useState(true);
   const [savedExportPath, setSavedExportPath] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [notice, setNotice] = useState<string>();
   const saveTimer = useRef<number>();
 
   useEffect(() => {
-    window.studio.loadWorkspace().then((loadedWorkspace) => {
-      setWorkspace(loadedWorkspace);
-      const firstCollection = loadedWorkspace.collections[0];
+    window.studio.loadWorkspace().then((result) => {
+      setWorkspace(result.workspace);
+      if (result.recovered && result.message) {
+        setNotice(result.message);
+      }
+      const firstCollection = result.workspace.collections[0];
       if (firstCollection) {
         setActiveCollectionId(firstCollection.id);
         setSelectedRequestId(firstRequestId(firstCollection));
       }
       setLoaded(true);
     });
+    window.studio.loadSettings().then(setSettings);
   }, []);
 
   useEffect(() => {
@@ -128,23 +150,34 @@ export function App() {
     (environment) => environment.id === workspace.activeEnvironmentId
   );
 
-  const exportContent = useMemo(() => {
+  const exportResult = useMemo<{ content: string; warnings: ExportWarning[] }>(() => {
     if (!activeCollection) {
-      return "";
+      return { content: "", warnings: [] };
     }
     if (exportFormat === "collection-json") {
-      return serializeCollectionJson(activeCollection);
+      return { content: serializeCollectionJson(activeCollection), warnings: [] };
     }
-    return exportCollectionToOpenApi(activeCollection, {
+    return exportCollectionToOpenApiResult(activeCollection, {
       format: exportFormat === "openapi-json" ? "json" : "yaml",
       folderIds: exportFolderIds,
       useFolderNamesAsTags: true,
-      includeRequestExamples: true,
+      includeRequestExamples: includeExamples,
+      includeParameterExamples: includeExamples,
       includeResponseExamples: true,
       includeBearerJwtSecurityScheme: true,
-      includeAllComponents
+      includeAllComponents,
+      pruneUnusedComponents
     });
-  }, [activeCollection, exportFolderIds, exportFormat, includeAllComponents]);
+  }, [
+    activeCollection,
+    exportFolderIds,
+    exportFormat,
+    includeAllComponents,
+    includeExamples,
+    pruneUnusedComponents
+  ]);
+
+  const exportContent = exportResult.content;
 
   const mutateWorkspace = (recipe: (draft: Workspace) => void) => {
     setSaveStatus("dirty");
@@ -168,6 +201,14 @@ export function App() {
   };
 
   const createNewWorkspace = () => {
+    if (
+      (workspace.collections.length > 0 || workspace.environments.length > 0) &&
+      !window.confirm(
+        "Start a new workspace? The current collections and environments will be replaced. A backup of the saved file is kept in the backups folder."
+      )
+    ) {
+      return;
+    }
     const nextWorkspace = createEmptyWorkspace("New Workspace");
     setSaveStatus("dirty");
     setWorkspace(nextWorkspace);
@@ -361,6 +402,43 @@ export function App() {
     });
   };
 
+  const updateSettings = (patch: Partial<AppSettings>) => {
+    setSettings((current) => {
+      const next = { ...current, ...patch };
+      void window.studio.saveSettings(next).then(setSettings);
+      return next;
+    });
+  };
+
+  const assignResponseValue = (path: string, variableName: string) => {
+    if (!response || !variableName.trim()) {
+      return;
+    }
+    const extracted = extractJsonPath(response.rawBody || response.body, path);
+    if (extracted === undefined) {
+      setNotice(`Could not find "${path}" in the response body.`);
+      return;
+    }
+    const value = typeof extracted === "string" ? extracted : JSON.stringify(extracted);
+    mutateWorkspace((draft) => {
+      let environment = draft.environments.find(
+        (candidate) => candidate.id === draft.activeEnvironmentId
+      );
+      if (!environment) {
+        environment = createEnvironment("Local");
+        draft.environments.push(environment);
+        draft.activeEnvironmentId = environment.id;
+      }
+      const existing = environment.variables.find((variable) => variable.name === variableName);
+      if (existing) {
+        existing.value = value;
+      } else {
+        environment.variables.push(createEnvironmentVariable(variableName, value));
+      }
+    });
+    setNotice(`Saved "${variableName}" to the ${activeEnvironment ? "active" : "new"} environment.`);
+  };
+
   const saveExport = async () => {
     if (!activeCollection || !exportContent) {
       return;
@@ -428,7 +506,19 @@ export function App() {
         <TabButton active={screen === "export"} icon={<Download size={17} />} onClick={() => setScreen("export")}>
           Export
         </TabButton>
+        <TabButton active={screen === "settings"} icon={<Settings size={17} />} onClick={() => setScreen("settings")}>
+          Settings
+        </TabButton>
       </nav>
+
+      {notice && (
+        <div className="notice-banner">
+          <span>{notice}</span>
+          <button className="icon-button" onClick={() => setNotice(undefined)} type="button">
+            x
+          </button>
+        </div>
+      )}
 
       <main className="content">
         {screen === "home" && (
@@ -479,6 +569,8 @@ export function App() {
             }}
             onSend={sendActiveRequest}
             onUpdateRequest={updateActiveRequest}
+            onAssignResponseValue={assignResponseValue}
+            environmentVariableNames={activeEnvironment?.variables.map((variable) => variable.name) ?? []}
             requestTab={requestTab}
             response={response}
             selectedFolderId={selectedFolderId}
@@ -486,19 +578,25 @@ export function App() {
             workspace={workspace}
           />
         )}
+        {screen === "settings" && (
+          <SettingsScreen settings={settings} onChange={updateSettings} />
+        )}
         {screen === "environments" && (
           <EnvironmentScreen
             activeEnvironmentId={workspace.activeEnvironmentId}
             environments={workspace.environments}
             onCreateEnvironment={createNewEnvironment}
-            onDeleteEnvironment={(environmentId) =>
+            onDeleteEnvironment={(environmentId) => {
+              if (!window.confirm("Delete this environment and its variables? This cannot be undone.")) {
+                return;
+              }
               mutateWorkspace((draft) => {
                 draft.environments = draft.environments.filter((environment) => environment.id !== environmentId);
                 if (draft.activeEnvironmentId === environmentId) {
                   draft.activeEnvironmentId = draft.environments[0]?.id;
                 }
-              })
-            }
+              });
+            }}
             onSelectEnvironment={(environmentId) =>
               mutateWorkspace((draft) => {
                 draft.activeEnvironmentId = environmentId;
@@ -511,12 +609,17 @@ export function App() {
           <ExportScreen
             activeCollection={activeCollection}
             exportContent={exportContent}
+            exportWarnings={exportResult.warnings}
             exportFolderIds={exportFolderIds}
             exportFormat={exportFormat}
             includeAllComponents={includeAllComponents}
+            includeExamples={includeExamples}
+            pruneUnusedComponents={pruneUnusedComponents}
             onExportFolderIdsChange={setExportFolderIds}
             onExportFormatChange={setExportFormat}
             onIncludeAllComponentsChange={setIncludeAllComponents}
+            onIncludeExamplesChange={setIncludeExamples}
+            onPruneUnusedComponentsChange={setPruneUnusedComponents}
             onSave={saveExport}
             savedExportPath={savedExportPath}
           />
@@ -712,7 +815,9 @@ function EditorScreen({
   onUpdateRequest,
   onMoveRequest,
   onRequestTabChange,
-  onSend
+  onSend,
+  onAssignResponseValue,
+  environmentVariableNames
 }: {
   workspace: Workspace;
   activeCollection?: Collection;
@@ -734,6 +839,8 @@ function EditorScreen({
   onMoveRequest(folderId: string): void;
   onRequestTabChange(tab: RequestTab): void;
   onSend(): void;
+  onAssignResponseValue(path: string, variableName: string): void;
+  environmentVariableNames: string[];
 }) {
   return (
     <section className="editor-layout">
@@ -867,7 +974,11 @@ function EditorScreen({
           </div>
         )}
       </div>
-      <ResponsePanel response={response} />
+      <ResponsePanel
+        response={response}
+        onAssignResponseValue={onAssignResponseValue}
+        environmentVariableNames={environmentVariableNames}
+      />
     </section>
   );
 }
@@ -1058,12 +1169,24 @@ function AuthFields({
   );
 }
 
-function ResponsePanel({ response }: { response?: ResponseState }) {
+function ResponsePanel({
+  response,
+  onAssignResponseValue,
+  environmentVariableNames
+}: {
+  response?: ResponseState;
+  onAssignResponseValue(path: string, variableName: string): void;
+  environmentVariableNames: string[];
+}) {
   const [responseTab, setResponseTab] = useState<ResponseTab>("body");
+  const [assignPath, setAssignPath] = useState("access_token");
+  const [assignVariable, setAssignVariable] = useState("accessToken");
 
   useEffect(() => {
     setResponseTab("body");
   }, [response?.status, response?.body, response?.rawBody]);
+
+  const isJsonResponse = Boolean(response && !response.error && looksLikeJson(response.rawBody));
 
   return (
     <aside className="response-panel">
@@ -1076,6 +1199,11 @@ function ResponsePanel({ response }: { response?: ResponseState }) {
         )}
       </div>
       {response?.error && <div className="status-box status-box--error">{response.error}</div>}
+      {response?.truncated && (
+        <div className="status-box status-box--warning">
+          Response was larger than the size limit and has been truncated. Increase the limit in Settings if needed.
+        </div>
+      )}
       {response && !response.error ? (
         <>
           <div className="response-tabs">
@@ -1097,6 +1225,40 @@ function ResponsePanel({ response }: { response?: ResponseState }) {
                 ? response.rawBody
                 : response.body}
           </pre>
+          {isJsonResponse && (
+            <div className="assign-row">
+              <span className="assign-row__label">Save field to variable</span>
+              <div className="assign-row__controls">
+                <input
+                  aria-label="Response field path"
+                  onChange={(event) => setAssignPath(event.target.value)}
+                  placeholder="access_token"
+                  value={assignPath}
+                />
+                <input
+                  aria-label="Target variable name"
+                  list="known-variable-names"
+                  onChange={(event) => setAssignVariable(event.target.value)}
+                  placeholder="accessToken"
+                  value={assignVariable}
+                />
+                <datalist id="known-variable-names">
+                  {environmentVariableNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                <button
+                  className="secondary-button"
+                  disabled={!assignPath.trim() || !assignVariable.trim()}
+                  onClick={() => onAssignResponseValue(assignPath, assignVariable)}
+                  type="button"
+                >
+                  <Save size={16} />
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="empty-response">Status, timing, size, headers, and body appear after Send.</div>
@@ -1251,25 +1413,38 @@ function ExportScreen({
   exportFormat,
   exportFolderIds,
   exportContent,
+  exportWarnings,
   includeAllComponents,
+  includeExamples,
+  pruneUnusedComponents,
   savedExportPath,
   onExportFormatChange,
   onExportFolderIdsChange,
   onIncludeAllComponentsChange,
+  onIncludeExamplesChange,
+  onPruneUnusedComponentsChange,
   onSave
 }: {
   activeCollection?: Collection;
   exportFormat: ExportFormat;
   exportFolderIds: string[];
   exportContent: string;
+  exportWarnings: ExportWarning[];
   includeAllComponents: boolean;
+  includeExamples: boolean;
+  pruneUnusedComponents: boolean;
   savedExportPath: string;
   onExportFormatChange(format: ExportFormat): void;
   onExportFolderIdsChange(folderIds: string[]): void;
   onIncludeAllComponentsChange(value: boolean): void;
+  onIncludeExamplesChange(value: boolean): void;
+  onPruneUnusedComponentsChange(value: boolean): void;
   onSave(): void;
 }) {
   const folders = activeCollection ? flattenFolders(activeCollection) : [];
+  const isOpenApi = exportFormat !== "collection-json";
+  const secretWarnings = exportWarnings.filter((warning) => warning.kind === "secret");
+  const otherWarnings = exportWarnings.filter((warning) => warning.kind !== "secret");
 
   return (
     <section className="export-layout">
@@ -1314,15 +1489,29 @@ function ExportScreen({
         <label className="check-row">
           <input
             checked={includeAllComponents}
-            disabled={exportFormat === "collection-json"}
+            disabled={!isOpenApi}
             onChange={(event) => onIncludeAllComponentsChange(event.target.checked)}
             type="checkbox"
           />
           <span>Include all components</span>
         </label>
-        <label className="check-row is-disabled">
-          <input checked={false} disabled type="checkbox" />
-          <span>Remove unused components</span>
+        <label className="check-row">
+          <input
+            checked={pruneUnusedComponents}
+            disabled={!isOpenApi || !includeAllComponents}
+            onChange={(event) => onPruneUnusedComponentsChange(event.target.checked)}
+            type="checkbox"
+          />
+          <span>Remove unused component schemas</span>
+        </label>
+        <label className="check-row">
+          <input
+            checked={includeExamples}
+            disabled={!isOpenApi}
+            onChange={(event) => onIncludeExamplesChange(event.target.checked)}
+            type="checkbox"
+          />
+          <span>Include example values (may contain secrets)</span>
         </label>
         <button className="primary-button" disabled={!activeCollection} onClick={onSave} type="button">
           <Save size={16} />
@@ -1335,7 +1524,81 @@ function ExportScreen({
           <h2>Preview</h2>
           <span>{activeCollection?.name ?? "No collection selected"}</span>
         </div>
+        {secretWarnings.length > 0 && (
+          <div className="status-box status-box--error">
+            <strong>Possible secret leak:</strong>
+            <ul>
+              {secretWarnings.map((warning, index) => (
+                <li key={index}>{warning.message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {otherWarnings.length > 0 && (
+          <div className="status-box status-box--warning">
+            <ul>
+              {otherWarnings.map((warning, index) => (
+                <li key={index}>{warning.message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <pre className="export-preview">{exportContent}</pre>
+      </div>
+    </section>
+  );
+}
+
+function SettingsScreen({
+  settings,
+  onChange
+}: {
+  settings: AppSettings;
+  onChange(patch: Partial<AppSettings>): void;
+}) {
+  return (
+    <section className="settings-layout">
+      <div className="pane">
+        <div className="pane__header">
+          <h2>Settings</h2>
+        </div>
+        <label className="field">
+          <span>Request timeout (ms)</span>
+          <input
+            min={0}
+            onChange={(event) =>
+              onChange({ requestTimeoutMs: Math.max(0, Number(event.target.value) || 0) })
+            }
+            type="number"
+            value={settings.requestTimeoutMs}
+          />
+        </label>
+        <label className="field">
+          <span>Max response size (MB)</span>
+          <input
+            min={1}
+            onChange={(event) =>
+              onChange({
+                maxResponseBytes: Math.max(1, Number(event.target.value) || 1) * 1024 * 1024
+              })
+            }
+            type="number"
+            value={Math.round(settings.maxResponseBytes / (1024 * 1024))}
+          />
+        </label>
+        <label className="check-row">
+          <input
+            checked={settings.allowInsecureTls}
+            onChange={(event) => onChange({ allowInsecureTls: event.target.checked })}
+            type="checkbox"
+          />
+          <span>Allow insecure TLS (self-signed / internal CA certificates)</span>
+        </label>
+        {settings.allowInsecureTls && (
+          <div className="status-box status-box--warning">
+            TLS certificate verification is disabled for outgoing requests. Only enable this on trusted internal networks.
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1419,4 +1682,50 @@ function slug(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+function looksLikeJson(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.startsWith("{") || trimmed.startsWith("[");
+}
+
+/**
+ * Read a dotted/bracketed path (e.g. "data.token", "items[0].id") out of a
+ * JSON response body. Returns undefined when the body is not JSON or the path
+ * does not resolve.
+ */
+function extractJsonPath(body: string, path: string): unknown {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+
+  const segments = path
+    .replace(/\[(\d+)\]/g, ".$1")
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  let current: unknown = parsed;
+  for (const segment of segments) {
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    if (Array.isArray(current)) {
+      const index = Number(segment);
+      if (!Number.isInteger(index)) {
+        return undefined;
+      }
+      current = current[index];
+      continue;
+    }
+    if (typeof current === "object") {
+      current = (current as Record<string, unknown>)[segment];
+      continue;
+    }
+    return undefined;
+  }
+  return current;
 }

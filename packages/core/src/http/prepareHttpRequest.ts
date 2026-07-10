@@ -120,14 +120,21 @@ function keyValuesToHeaders(values: KeyValue[]): Record<string, string> {
 }
 
 function encodeBase64(value: string): string {
-  if (typeof btoa === "function") {
-    return btoa(value);
-  }
+  // Basic auth credentials may contain non-Latin1 characters (e.g. Turkish
+  // ş/ğ/ı). Encode as UTF-8 first per RFC 7617 so btoa does not throw.
   const maybeBuffer = (globalThis as unknown as {
     Buffer?: { from(input: string, encoding: string): { toString(encoding: string): string } };
   }).Buffer;
   if (maybeBuffer) {
     return maybeBuffer.from(value, "utf8").toString("base64");
+  }
+  if (typeof btoa === "function" && typeof TextEncoder === "function") {
+    const bytes = new TextEncoder().encode(value);
+    let binary = "";
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
   }
   throw new Error("Base64 encoding is not available in this runtime.");
 }

@@ -22,18 +22,35 @@ export function environmentToMap(environment?: Environment): Record<string, stri
   return map;
 }
 
+const MAX_RESOLUTION_PASSES = 5;
+
 export function resolveVariablesInText(
   input: string,
   variables: Record<string, string>
 ): VariableResolution {
   const missing = new Set<string>();
-  const value = input.replace(VARIABLE_PATTERN, (match, name: string) => {
-    if (Object.prototype.hasOwnProperty.call(variables, name)) {
-      return variables[name];
+  let value = input;
+
+  // Resolve up to a few passes so a variable whose value references another
+  // variable (e.g. baseUrl composed from host + scheme) is fully expanded.
+  // The pass limit also prevents an infinite loop on self-referential values.
+  for (let pass = 0; pass < MAX_RESOLUTION_PASSES; pass += 1) {
+    let replaced = false;
+    missing.clear();
+    value = value.replace(VARIABLE_PATTERN, (match, name: string) => {
+      if (Object.prototype.hasOwnProperty.call(variables, name)) {
+        replaced = true;
+        return variables[name];
+      }
+      missing.add(name);
+      return match;
+    });
+    // Stop once a pass makes no further substitution. Missing variables alone
+    // do not end the loop, since an expanded value may introduce new ones.
+    if (!replaced) {
+      break;
     }
-    missing.add(name);
-    return match;
-  });
+  }
 
   return {
     value,

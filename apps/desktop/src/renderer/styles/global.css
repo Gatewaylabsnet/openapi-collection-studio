@@ -756,3 +756,70 @@ pre {
     grid-template-columns: 1fr;
   }
 }
+
+/* Red-team hardening additions */
+.status-box--warning {
+  border-color: #f0d9a8;
+  color: #7a5a10;
+  background: #fffaf0;
+}
+
+.status-box ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.status-box li {
+  margin: 2px 0;
+}
+
+.notice-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 18px;
+  padding: 10px 14px;
+  border: 1px solid #f0d9a8;
+  border-radius: 8px;
+  color: #7a5a10;
+  background: #fffaf0;
+  font-size: 13px;
+}
+
+.assign-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.assign-row__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 6px;
+}
+
+.assign-row__controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.assign-row__controls input {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(420px, 640px);
+  padding: 18px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.settings-layout .field {
+  margin-bottom: 16px;
+}

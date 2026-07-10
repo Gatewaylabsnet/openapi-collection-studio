@@ -120,9 +120,15 @@ export function resolveLocalRef<T = unknown>(document: AnyRecord, value: T): T {
     .split("/")
     .map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
 
+  // Reject segments that would walk into the prototype chain. A crafted
+  // document ("$ref": "#/__proto__/...") must never reach Object.prototype.
+  if (segments.some((segment) => segment === "__proto__" || segment === "prototype" || segment === "constructor")) {
+    return value;
+  }
+
   let current: unknown = document;
   for (const segment of segments) {
-    if (!isRecord(current)) {
+    if (!isRecord(current) || !Object.prototype.hasOwnProperty.call(current, segment)) {
       return value;
     }
     current = current[segment];
