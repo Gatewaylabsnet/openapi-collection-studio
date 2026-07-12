@@ -11,9 +11,9 @@
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "build": "electron-vite build",
-    "package:win:portable": "npm run build && electron-builder --win portable --x64",
-    "package:win:installer": "npm run build && electron-builder --win nsis --x64",
-    "package:win": "npm run build && electron-builder --win nsis portable --x64",
+    "package:win:portable": "npm run build && electron-builder --win portable --x64 -p never",
+    "package:win:installer": "npm run build && electron-builder --win nsis --x64 -p never",
+    "package:win": "npm run build && electron-builder --win nsis portable --x64 -p never",
     "icon": "node build/generate-icon.mjs"
   },
   "dependencies": {
