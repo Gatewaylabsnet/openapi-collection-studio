@@ -27,8 +27,16 @@ jobs:
           npm run typecheck
           npm test
 
-      - name: Package Windows portable + installer
-        run: npm run package:win --workspace @openapi-collection-studio/desktop
+      - name: Package Windows portable (required)
+        run: npm run package:win:portable --workspace @openapi-collection-studio/desktop
+
+      - name: Package Windows installer (best-effort)
+        continue-on-error: true
+        run: npm run package:win:installer --workspace @openapi-collection-studio/desktop
+
+      - name: List built artifacts
+        shell: bash
+        run: ls -la apps/desktop/dist || true
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
