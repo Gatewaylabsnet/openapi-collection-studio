@@ -35,7 +35,7 @@ jobs:
         with:
           draft: true
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
-            apps/desktop/dist/*-portable.exe
             apps/desktop/dist/*.exe
-            apps/desktop/dist/latest.yml
+            apps/desktop/dist/*.yml
