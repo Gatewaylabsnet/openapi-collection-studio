@@ -37,14 +37,7 @@ jobs:
           npm test
 
       - name: Package Windows portable (required)
-        shell: bash
-        run: |
-          set -o pipefail
-          if npm run package:win:portable --workspace @openapi-collection-studio/desktop 2>&1 | tee build.log; then
-            exit 0
-          fi
-          echo "::error title=portable-tail::$(tail -25 build.log | tr '\n' '§' | sed 's/"/'"'"'/g')"
-          exit 1
+        run: npm run package:win:portable --workspace @openapi-collection-studio/desktop
 
       - name: Package Windows installer (best-effort)
         continue-on-error: true
