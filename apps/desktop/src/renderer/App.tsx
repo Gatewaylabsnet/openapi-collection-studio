@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
   FileJson,
+  FilePlus2,
   FolderPlus,
   Import,
   Play,
@@ -1432,7 +1433,7 @@ function EditorScreen({
             <FolderPlus size={16} />
           </button>
           <button className="icon-button" disabled={!activeCollection} onClick={onAddRequest} title="New request" type="button">
-            <Send size={16} />
+            <FilePlus2 size={16} />
           </button>
           <button className="icon-button" disabled={!activeCollection} onClick={onAddJwtRequest} title="JWT token request" type="button">
             <Wand2 size={16} />
