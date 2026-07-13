@@ -1,6 +1,6 @@
 {
   "name": "@openapi-collection-studio/desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Desktop shell for Specfold.",
   "author": "GatewayLabs (https://gatewaylabs.net)",
@@ -17,7 +17,7 @@
     "icon": "node build/generate-icon.mjs"
   },
   "devDependencies": {
-    "@openapi-collection-studio/core": "0.1.0",
+    "@openapi-collection-studio/core": "0.2.0",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
