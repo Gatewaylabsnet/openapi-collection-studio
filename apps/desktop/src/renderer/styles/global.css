@@ -1193,3 +1193,9 @@ textarea:focus-visible {
   flex: none;
   border-radius: 9px;
 }
+
+.ops-hint {
+  margin: 0 0 8px;
+  color: #8494a7;
+  font-size: 11px;
+}

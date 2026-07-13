@@ -114,6 +114,8 @@ export function App() {
   const [isFetchingImport, setIsFetchingImport] = useState(false);
   const [importOperations, setImportOperations] = useState<ImportOperationSummary[]>([]);
   const [selectedImportKeys, setSelectedImportKeys] = useState<Set<string>>(new Set());
+  // Anchor index for Shift-click range selection in the import operations list.
+  const lastImportIndexRef = useRef<number | null>(null);
   const [grouping, setGrouping] = useState<GroupingStrategy>("tags");
   const [importError, setImportError] = useState("");
   const [importSummary, setImportSummary] = useState("");
@@ -165,6 +167,7 @@ export function App() {
   // selected; the user can narrow the set before importing.
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      lastImportIndexRef.current = null;
       if (!importText.trim() || looksLikeCurl(importText)) {
         setImportOperations([]);
         setSelectedImportKeys(new Set());
@@ -625,6 +628,38 @@ export function App() {
     }
   };
 
+  const toggleImportOperation = (key: string, index: number, shiftKey: boolean) => {
+    // Capture the anchor before the state updater runs: React may defer the
+    // updater, and we reassign the ref to `index` synchronously below, so the
+    // updater must close over this snapshot rather than read the ref later.
+    const anchor = lastImportIndexRef.current;
+    lastImportIndexRef.current = index;
+    setSelectedImportKeys((current) => {
+      const next = new Set(current);
+      // The clicked item's new state drives the whole range on Shift-click.
+      const shouldSelect = !current.has(key);
+      if (shiftKey && anchor !== null) {
+        const [from, to] = anchor <= index ? [anchor, index] : [index, anchor];
+        for (let i = from; i <= to; i += 1) {
+          const rangeKey = importOperations[i]?.key;
+          if (!rangeKey) {
+            continue;
+          }
+          if (shouldSelect) {
+            next.add(rangeKey);
+          } else {
+            next.delete(rangeKey);
+          }
+        }
+      } else if (shouldSelect) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  };
+
   const handlePreviewImport = () => {
     setImportError("");
     if (looksLikeCurl(importText)) {
@@ -961,17 +996,7 @@ export function App() {
             isFetchingUrl={isFetchingImport}
             operations={importOperations}
             selectedOperationKeys={selectedImportKeys}
-            onToggleOperation={(key) =>
-              setSelectedImportKeys((current) => {
-                const next = new Set(current);
-                if (next.has(key)) {
-                  next.delete(key);
-                } else {
-                  next.add(key);
-                }
-                return next;
-              })
-            }
+            onToggleOperation={toggleImportOperation}
             onSelectAllOperations={(selectAll) =>
               setSelectedImportKeys(
                 selectAll
@@ -1185,7 +1210,7 @@ function ImportScreen({
   importError: string;
   operations: ImportOperationSummary[];
   selectedOperationKeys: Set<string>;
-  onToggleOperation(key: string): void;
+  onToggleOperation(key: string, index: number, shiftKey: boolean): void;
   onSelectAllOperations(selectAll: boolean): void;
   onTextChange(value: string): void;
   onImportUrlChange(value: string): void;
@@ -1301,8 +1326,9 @@ function ImportScreen({
                 Deselect all
               </button>
             </div>
+            <p className="ops-hint">Tip: Shift-click to select a range.</p>
             <div className="ops-list">
-              {operations.map((operation) => (
+              {operations.map((operation, index) => (
                 <label
                   className="check-row ops-row"
                   key={operation.key}
@@ -1310,7 +1336,10 @@ function ImportScreen({
                 >
                   <input
                     checked={selectedOperationKeys.has(operation.key)}
-                    onChange={() => onToggleOperation(operation.key)}
+                    onChange={() => {}}
+                    onClick={(event) =>
+                      onToggleOperation(operation.key, index, event.shiftKey)
+                    }
                     type="checkbox"
                   />
                   <span className={`method method--${operation.method.toLowerCase()}`}>
