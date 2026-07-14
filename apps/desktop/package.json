@@ -4,6 +4,11 @@
   "private": true,
   "description": "Desktop shell for Specfold.",
   "desktopName": "Specfold.desktop",
+  "homepage": "https://github.com/Gatewaylabsnet/specfold",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gatewaylabsnet/specfold.git"
+  },
   "author": "GatewayLabs (https://gatewaylabs.net)",
   "license": "Apache-2.0",
   "type": "module",
