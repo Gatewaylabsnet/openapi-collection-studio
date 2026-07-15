@@ -1,6 +1,6 @@
 {
   "name": "@openapi-collection-studio/desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Desktop shell for Specfold.",
   "desktopName": "Specfold.desktop",
@@ -26,7 +26,7 @@
     "icon": "node build/generate-icon.mjs"
   },
   "devDependencies": {
-    "@openapi-collection-studio/core": "1.0.1",
+    "@openapi-collection-studio/core": "1.0.2",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
