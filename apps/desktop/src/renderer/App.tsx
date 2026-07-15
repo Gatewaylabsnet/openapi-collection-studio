@@ -306,6 +306,7 @@ export function App() {
 
   const addCollection = () => {
     const collection = createCollection("New Collection");
+    applyEnvironmentBaseUrlToCollection(collection, activeEnvironment);
     mutateWorkspace((draft) => {
       draft.collections.push(collection);
     });
@@ -766,6 +767,7 @@ export function App() {
       setSelectedFolderId(undefined);
     } else {
       const collection = createCollection("Imported Requests");
+      applyEnvironmentBaseUrlToCollection(collection, activeEnvironment);
       collection.requests.push(request);
       mutateWorkspace((draft) => {
         draft.collections.push(collection);
@@ -2526,6 +2528,16 @@ function isBaseUrlVariable(variable: Pick<EnvironmentVariable, "name">): boolean
 
 function environmentBaseUrl(environment: Environment): string {
   return environment.variables.find(isBaseUrlVariable)?.value ?? "";
+}
+
+function applyEnvironmentBaseUrlToCollection(
+  collection: Collection,
+  environment: Environment | undefined
+): void {
+  const baseUrl = environment ? environmentBaseUrl(environment).trim() : "";
+  if (baseUrl) {
+    collection.baseUrl = baseUrl;
+  }
 }
 
 function upsertEnvironmentBaseUrl(environment: Environment, value: string): void {
