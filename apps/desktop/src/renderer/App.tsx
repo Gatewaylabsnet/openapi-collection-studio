@@ -1,4 +1,4 @@
-import { flattenFolders } from "@openapi-collection-studio/core";
+import { findFolder, flattenFolders } from "@openapi-collection-studio/core";
 import { BrandMark } from "./app/BrandMark";
 import { saveStatusLabel } from "./app/helpers";
 import { CollectionsSidebar, WelcomeMain } from "./app/screens/CollectionsSidebar";
@@ -32,6 +32,11 @@ export function App() {
     updateSettings, assignResponseValue, saveExport, copyExportToClipboard, exportFullBackup,
     restoreFullBackup, deleteAllData, treeActions
   } = useStudioController();
+  const activeFolder =
+    activeRequestLocation?.folder ??
+    (activeCollection && selectedFolderId
+      ? findFolder(activeCollection, selectedFolderId)
+      : undefined);
   if (!loaded) {
     return <div className="loading">Loading workspace...</div>;
   }
@@ -137,6 +142,7 @@ export function App() {
           ) : (
             <RequestWorkspace
               activeCollection={activeCollection}
+              activeFolder={activeFolder}
               activeRequest={activeRequest}
               folderOptions={activeCollection ? flattenFolders(activeCollection) : []}
               isSending={isSending}
@@ -148,6 +154,14 @@ export function App() {
               onCopyCurl={copyActiveRequestAsCurl}
               onUpdateCollection={(recipe) =>
                 activeCollection && mutateCollection(activeCollection.id, recipe)
+              }
+              onUpdateFolder={(recipe) =>
+                activeCollection && activeFolder && mutateCollection(activeCollection.id, (collection) => {
+                  const folder = findFolder(collection, activeFolder.id);
+                  if (folder) {
+                    recipe(folder);
+                  }
+                })
               }
               onUpdateRequest={updateActiveRequest}
               onAssignResponseValue={assignResponseValue}

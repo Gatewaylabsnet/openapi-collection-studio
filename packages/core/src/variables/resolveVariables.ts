@@ -1,4 +1,5 @@
-import type { ApiRequest, Collection, Environment, KeyValue } from "../model/types";
+import type { ApiRequest, Collection, Environment, Folder, KeyValue } from "../model/types";
+import { folderBaseUrl } from "../model/traversal";
 
 export interface VariableResolution {
   value: string;
@@ -14,7 +15,8 @@ const VARIABLE_PATTERN = /\{\{\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*\}\}/g;
 
 export function environmentToMap(
   environment?: Environment,
-  collection?: Pick<Collection, "baseUrl">
+  collection?: Pick<Collection, "baseUrl">,
+  folderPath: readonly Pick<Folder, "baseUrl">[] = []
 ): Record<string, string> {
   const map: Record<string, string> = {};
   for (const variable of environment?.variables ?? []) {
@@ -29,6 +31,10 @@ export function environmentToMap(
   const collectionBaseUrl = collection?.baseUrl?.trim();
   if (collectionBaseUrl) {
     map.baseUrl = collectionBaseUrl;
+  }
+  const scopedFolderBaseUrl = folderBaseUrl(folderPath);
+  if (scopedFolderBaseUrl) {
+    map.baseUrl = scopedFolderBaseUrl;
   }
   return map;
 }
@@ -99,9 +105,10 @@ export function resolveKeyValues(
 export function resolveRequestVariables(
   request: ApiRequest,
   environment?: Environment,
-  collection?: Pick<Collection, "baseUrl">
+  collection?: Pick<Collection, "baseUrl">,
+  folderPath: readonly Pick<Folder, "baseUrl">[] = []
 ): ResolvedRequest {
-  const variables = environmentToMap(environment, collection);
+  const variables = environmentToMap(environment, collection, folderPath);
   const missing = new Set<string>();
   const url = resolveVariablesInText(request.url, variables);
   url.missing.forEach((name) => missing.add(name));

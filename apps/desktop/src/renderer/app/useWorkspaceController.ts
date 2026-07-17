@@ -1,6 +1,7 @@
 import {
   cloneFolder, cloneRequest, countFolderRequests, createApinizerJwtRequest, createCollection,
   createEmptyWorkspace, createEnvironment, createFolder, createId, createJwtRequest,
+  deriveApinizerBaseUrl,
   createKeyValue, createRequest, checkOpenApiDocument, exportCollectionToOpenApiResult,
   looksLikeCurl, parseCurlCommand, requestToCurl, findFolder, findRequest, flattenRequests,
   importDocument, importPostmanV3Folder, listOperations, previewImportDocument,
@@ -11,7 +12,7 @@ import {
 } from "@openapi-collection-studio/core";
 import { flattenFolders } from "@openapi-collection-studio/core";
 import type { DropTarget, TreeActions } from "../components/CollectionTree";
-import { activeRequestFolderId, applyEnvironmentBaseUrlToCollection, firstRequestId } from "./helpers";
+import { activeRequestFolderId, applyEnvironmentBaseUrlToCollection, environmentBaseUrl, firstRequestId } from "./helpers";
 import type { StudioState } from "./useStudioState";
 
 export function useWorkspaceController(state: StudioState) {
@@ -113,9 +114,17 @@ export function useWorkspaceController(state: StudioState) {
         : kind === "apinizer-jwt"
           ? createApinizerJwtRequest()
           : createRequest({ name: "New Request" });
-    const existingAuthFolder = activeCollection.folders.find((folder) => folder.name === "Auth");
+    const authFolderName = kind === "apinizer-jwt" ? "Apinizer Auth" : "Auth";
+    const existingAuthFolder = activeCollection.folders.find(
+      (folder) => folder.name.toLowerCase() === authFolderName.toLowerCase()
+    );
+    const apinizerBaseUrl = kind === "apinizer-jwt"
+      ? deriveApinizerBaseUrl(
+          activeCollection.baseUrl ?? (activeEnvironment ? environmentBaseUrl(activeEnvironment) : undefined)
+        )
+      : undefined;
     // Prefer the folder the user has selected — a new request/token goes into
-    // it. Only fall back to a dedicated "Auth" folder for token templates when
+    // it. Only fall back to a dedicated auth folder for token templates when
     // no folder is selected.
     const useAuthFallback = isAuthTemplate && !selectedFolderId;
     // Pre-generate the new Auth folder id so the updater stays pure: it builds
@@ -131,10 +140,17 @@ export function useWorkspaceController(state: StudioState) {
       }
       let folder = targetFolderId ? findFolder(collection, targetFolderId) : undefined;
       if (useAuthFallback && !folder) {
-        folder = { ...createFolder("Auth"), id: newAuthFolderId ?? createId("folder") };
+        folder = {
+          ...createFolder(authFolderName),
+          id: newAuthFolderId ?? createId("folder"),
+          baseUrl: apinizerBaseUrl
+        };
         collection.folders.push(folder);
       }
       if (folder) {
+        if (kind === "apinizer-jwt" && !folder.baseUrl?.trim() && apinizerBaseUrl) {
+          folder.baseUrl = apinizerBaseUrl;
+        }
         folder.requests.push(request);
       } else {
         collection.requests.push(request);

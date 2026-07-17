@@ -1,5 +1,6 @@
 import { stringify as stringifyYaml } from "yaml";
 import type { Collection } from "../../model/types";
+import { folderBaseUrl } from "../../model/traversal";
 import { buildInitialComponents, pruneUnusedComponents, serverList } from "./export/components";
 import { operationForRequest, pathFromRequest, tagsForRequest } from "./export/operation";
 import { openApiVersion, selectRequests } from "./export/selection";
@@ -58,7 +59,19 @@ export function exportCollectionToOpenApiDocument(
     const tags = tagsForRequest(collection, item, options);
     tags.forEach((tag) => tagNames.add(tag));
     const pathItem = (paths[path] ?? {}) as AnyRecord;
-    pathItem[method] = operationForRequest(item.request, tags, collection, components, options);
+    const operation = operationForRequest(item.request, tags, collection, components, options);
+    const scopedBaseUrl = folderBaseUrl(item.folderPath);
+    if (scopedBaseUrl && scopedBaseUrl !== collection.baseUrl) {
+      if (scopedBaseUrl.includes("{{")) {
+        warnings.push({
+          kind: "invalid-server",
+          message: `Folder server URL for "${item.request.name}" contains {{variables}} and was omitted from the OpenAPI operation.`
+        });
+      } else {
+        operation.servers = [{ url: scopedBaseUrl }];
+      }
+    }
+    pathItem[method] = operation;
     paths[path] = stripUndefined(pathItem);
   }
 

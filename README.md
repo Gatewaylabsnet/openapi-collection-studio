@@ -111,17 +111,20 @@ Malformed or unsupported records are reported without executing imported scripts
 
 ## Base URLs And Environments
 
-Specfold separates environment defaults from collection-level routing:
+Specfold separates environment defaults from collection- and folder-level routing:
 
 - Every workspace starts with an active `Specfold` environment; environments can be renamed, and the final environment cannot be deleted.
 - Environment `baseUrl` is a convenient default for new collections and bulk updates.
 - New collections copy the active environment `baseUrl` as their starting collection base URL.
 - Collection `baseUrl` overrides the environment `baseUrl` when requests resolve `{{baseUrl}}`.
+- A folder `baseUrl` overrides both values for every request below that folder; nested folders inherit the nearest configured parent and can override it again.
+- Absolute request URLs always stay unchanged. Relative request URLs are joined to the effective base URL, so both `/orders` and `{{baseUrl}}/orders` are supported.
 - Collection `baseUrl` can be edited directly from the request workspace, even when no request is selected.
+- Select a folder in the collection tree to edit its base URL. Leaving it empty restores inheritance.
 - Updating an environment `baseUrl` can optionally apply the same value to all collection base URLs.
 - Imported OpenAPI/Swagger `servers` are mapped into collection base URL data.
 
-This lets teams keep environment-level defaults while still allowing each collection to point at a different gateway, tenant, or service boundary.
+Effective precedence is: absolute request URL, nearest folder `baseUrl`, collection `baseUrl`, then environment `baseUrl`. This keeps two proxy folders isolated inside one collection.
 
 ## Apinizer JWT Workflow
 
@@ -129,11 +132,12 @@ Specfold includes an Apinizer-focused JWT request template:
 
 1. Import an OpenAPI/Swagger document exported from Apinizer.
 2. Create an **Apinizer JWT request** from the New menu.
-3. Set collection or environment values such as `baseUrl`, `username`, `password`, and `clientId`.
-4. Send the token request.
-5. Use **Save field to variable** on the response to store `access_token` as `{{accessToken}}`.
-6. Use bearer auth with `{{accessToken}}` on other requests.
-7. Export the selected folder or collection as OpenAPI YAML/JSON.
+3. Specfold creates an **Apinizer Auth** folder and derives its base URL from the API origin when possible. For example, `https://api.tarimorman.gov.tr/dats/cks` becomes `https://api.tarimorman.gov.tr`, producing `https://api.tarimorman.gov.tr/auth/jwt`.
+4. Review or override the folder base URL, then set environment values such as `username`, `password`, and `clientId`.
+5. Send the token request.
+6. Use **Save field to variable** on the response to store `access_token` as `{{accessToken}}`.
+7. Use bearer auth with `{{accessToken}}` on other requests.
+8. Export the selected folder or collection as OpenAPI YAML/JSON.
 
 ## Data And Security
 

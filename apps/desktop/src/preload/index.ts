@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ApiRequest, Collection, Environment, Workspace } from "@openapi-collection-studio/core";
+import type { ApiRequest, Collection, Environment, Folder, Workspace } from "@openapi-collection-studio/core";
 import type { StudioApi } from "../shared/contracts";
 
 const studioApi: StudioApi = {
@@ -8,8 +8,12 @@ const studioApi: StudioApi = {
     ipcRenderer.invoke("workspace:save", workspace) as Promise<void>,
   loadSettings: () => ipcRenderer.invoke("settings:load"),
   saveSettings: (settings: unknown) => ipcRenderer.invoke("settings:save", settings),
-  sendRequest: (request: ApiRequest, environment?: Environment, collection?: Pick<Collection, "baseUrl">) =>
-    ipcRenderer.invoke("http:send", { request, environment, collection }),
+  sendRequest: (
+    request: ApiRequest,
+    environment?: Environment,
+    collection?: Pick<Collection, "baseUrl">,
+    folderPath?: Array<Pick<Folder, "baseUrl">>
+  ) => ipcRenderer.invoke("http:send", { request, environment, collection, folderPath }),
   saveExportFile: (defaultPath: string, content: string) =>
     ipcRenderer.invoke("file:saveExport", { defaultPath, content }),
   openImportFile: () => ipcRenderer.invoke("file:openImport"),

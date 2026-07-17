@@ -118,7 +118,7 @@ export function createApinizerJwtRequest(): ApiRequest {
       url: "{{baseUrl}}/auth/jwt"
     }),
     description:
-      "Apinizer JWT token (password grant). Set baseUrl to your Apinizer gateway address, plus username, password, clientId and clientSecret in an environment. The response's access_token is used as Bearer auth on other requests.",
+      "Apinizer JWT token (password grant). Its folder base URL is automatically derived from the active API host when possible; you can override it on the folder. Set username, password and clientId in an environment. The response's access_token is used as Bearer auth on other requests.",
     headers: [createKeyValue("Content-Type", "application/x-www-form-urlencoded")],
     auth: { type: "none" },
     body: {
@@ -152,6 +152,23 @@ export function createApinizerJwtRequest(): ApiRequest {
       }
     ]
   };
+}
+
+/**
+ * Convert an API URL such as https://api.example.com/products/v1 into the
+ * gateway origin used by Apinizer's conventional /auth/jwt endpoint.
+ */
+export function deriveApinizerBaseUrl(input?: string): string | undefined {
+  const value = input?.trim();
+  if (!value || value.includes("{{")) {
+    return undefined;
+  }
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function createFolder(name: string): Folder {

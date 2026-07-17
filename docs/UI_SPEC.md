@@ -14,6 +14,7 @@ Users can open a supported file, select a Postman v3 folder, fetch an HTTP(S) UR
 - Request editor exposes method, URL, request name, destination folder, Params, Auth, Headers, and Body.
 - Response panel exposes body, headers, raw text, history, timing/size, and response-to-environment assignment.
 - Collection base URL remains editable with or without a selected request.
+- Selecting a folder exposes its optional base URL, inherited parent/collection hint, and subtree override behavior.
 
 ## Environments
 

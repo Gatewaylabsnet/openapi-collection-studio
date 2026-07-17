@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FilePlus2, Play, Plus, Send, Terminal, Wand2 } from "lucide-react";
-import { flattenFolders, type ApiRequest, type AuthConfig, type Collection, type Folder, type HttpMethod, type KeyValue } from "@openapi-collection-studio/core";
+import { flattenFolders, folderBaseUrl, type ApiRequest, type AuthConfig, type Collection, type Folder, type HttpMethod, type KeyValue } from "@openapi-collection-studio/core";
 import { KeyValueEditor } from "../../components/KeyValueEditor";
 import { methods } from "../types";
 import { activeRequestFolderId, authForType, tabLabel } from "../helpers";
@@ -9,6 +9,7 @@ import { ResponsePanel } from "./ResponsePanel";
 
 export function RequestWorkspace({
   activeCollection,
+  activeFolder,
   activeRequest,
   requestTab,
   response,
@@ -18,6 +19,7 @@ export function RequestWorkspace({
   onAddJwtRequest,
   onUpdateRequest,
   onUpdateCollection,
+  onUpdateFolder,
   onMoveRequest,
   onRequestTabChange,
   onSend,
@@ -27,6 +29,7 @@ export function RequestWorkspace({
   responseHistory
 }: {
   activeCollection?: Collection;
+  activeFolder?: Folder;
   activeRequest?: ApiRequest;
   requestTab: RequestTab;
   response?: ResponseState;
@@ -37,6 +40,7 @@ export function RequestWorkspace({
   onAddJwtRequest(): void;
   onUpdateRequest(recipe: (request: ApiRequest) => void): void;
   onUpdateCollection(recipe: (collection: Collection) => void): void;
+  onUpdateFolder(recipe: (folder: Folder) => void): void;
   onMoveRequest(folderId: string): void;
   onRequestTabChange(tab: RequestTab): void;
   onSend(): void;
@@ -48,20 +52,39 @@ export function RequestWorkspace({
     <section className="editor-layout">
       <div className="request-panel">
         {activeCollection && (
-          <label className="field collection-base-url">
-            <span>Collection base URL</span>
-            <input
-              aria-label="Collection base URL"
-              onChange={(event) =>
-                onUpdateCollection((collection) => {
-                  const value = event.target.value.trim();
-                  collection.baseUrl = value || undefined;
-                })
-              }
-              placeholder="https://api.example.com"
-              value={activeCollection.baseUrl ?? ""}
-            />
-          </label>
+          <div className="base-url-fields">
+            <label className="field collection-base-url">
+              <span>Collection base URL</span>
+              <input
+                aria-label="Collection base URL"
+                onChange={(event) =>
+                  onUpdateCollection((collection) => {
+                    const value = event.target.value.trim();
+                    collection.baseUrl = value || undefined;
+                  })
+                }
+                placeholder="https://api.example.com/service"
+                value={activeCollection.baseUrl ?? ""}
+              />
+            </label>
+            {activeFolder && (
+              <label className="field collection-base-url">
+                <span>Folder base URL</span>
+                <input
+                  aria-label="Folder base URL"
+                  onChange={(event) =>
+                    onUpdateFolder((folder) => {
+                      const value = event.target.value.trim();
+                      folder.baseUrl = value || undefined;
+                    })
+                  }
+                  placeholder={inheritedBaseUrl(activeCollection, activeFolder, folderOptions)}
+                  value={activeFolder.baseUrl ?? ""}
+                />
+                <small>Overrides the collection for this folder and its children. Leave empty to inherit.</small>
+              </label>
+            )}
+          </div>
         )}
         {activeRequest ? (
           <>
@@ -164,6 +187,16 @@ export function RequestWorkspace({
       />
     </section>
   );
+}
+
+function inheritedBaseUrl(
+  collection: Collection,
+  folder: Folder,
+  folderOptions: ReturnType<typeof flattenFolders>
+): string {
+  const path = folderOptions.find((item) => item.folder.id === folder.id)?.path ?? [];
+  const inherited = folderBaseUrl(path.slice(0, -1)) ?? collection.baseUrl;
+  return inherited ? `Inherited: ${inherited}` : "https://api.example.com/proxy";
 }
 
 function RequestNameInput({ name, onCommit }: { name: string; onCommit(name: string): void }) {

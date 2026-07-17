@@ -9,7 +9,8 @@ Specfold is a simple, local-first desktop REST API collection studio for develop
 - Import OpenAPI, Swagger, Postman, Insomnia, HAR, HTTP files, Specfold JSON, and cURL.
 - Preview and select operations before import without executing embedded scripts.
 - Create and organize collections, nested folders, requests, and JWT templates.
-- Manage renameable environments and resolve `{{variableName}}` values with collection base URL precedence.
+- Manage renameable environments and resolve `{{variableName}}` values with folder, collection, and environment base URL precedence.
+- Isolate multiple API proxies inside one collection and create Apinizer JWT authentication with an automatically derived gateway origin.
 - Send requests outside browser CORS restrictions and inspect/capture responses.
 - Export selected content to OpenAPI or native Collection JSON with secret warnings.
 - Export, validate, and restore a complete local backup; delete every local Specfold data file with strong confirmation.

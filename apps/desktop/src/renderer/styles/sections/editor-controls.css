@@ -26,7 +26,19 @@
 
 .collection-base-url {
   margin-top: 0;
+  margin-bottom: 0;
+}
+
+.base-url-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
   margin-bottom: 10px;
+}
+
+.base-url-fields small {
+  color: #64748b;
+  font-size: 11px;
 }
 
 .environment-base-url {

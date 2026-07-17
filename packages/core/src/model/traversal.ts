@@ -60,6 +60,19 @@ export function findRequest(collection: Collection, requestId: string): RequestW
   return flattenRequests(collection).find(({ request }) => request.id === requestId);
 }
 
+/** Return the nearest non-empty base URL in a folder path. */
+export function folderBaseUrl(
+  folderPath: readonly Pick<Folder, "baseUrl">[]
+): string | undefined {
+  for (let index = folderPath.length - 1; index >= 0; index -= 1) {
+    const value = folderPath[index].baseUrl?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 export function removeFolder(collection: Collection, folderId: string): Folder | undefined {
   const rootIndex = collection.folders.findIndex((folder) => folder.id === folderId);
   if (rootIndex >= 0) {
@@ -195,4 +208,3 @@ export function removeRequest(collection: Collection, requestId: string): ApiReq
 
   return removed;
 }
-

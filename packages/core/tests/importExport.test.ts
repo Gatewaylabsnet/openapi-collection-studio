@@ -109,10 +109,29 @@ describe("OpenAPI and Swagger import/export", () => {
     expect(exported.paths["/auth/token"].post.security).toEqual([{ BearerAuth: [] }]);
   });
 
+  it("exports folder base URLs as operation-level servers", () => {
+    const collection = createCollection("Multiple proxies");
+    collection.baseUrl = "https://api.example.com/default";
+    const folder = createFolder("Apinizer Auth");
+    folder.baseUrl = "https://api.example.com";
+    folder.requests.push(createRequest({ name: "Token", method: "POST", url: "{{baseUrl}}/auth/jwt" }));
+    collection.folders.push(folder);
+
+    const exported = JSON.parse(
+      exportCollectionToOpenApi(collection, defaultExportOptions("json"))
+    );
+
+    expect(exported.servers).toEqual([{ url: "https://api.example.com/default" }]);
+    expect(exported.paths["/auth/jwt"].post.servers).toEqual([
+      { url: "https://api.example.com" }
+    ]);
+  });
+
   it("roundtrips app Collection JSON without data loss", () => {
     const result = importApiDocument(fixture("openapi/simple-openapi.yaml"), {
       grouping: "firstPathSegment"
     });
+    result.collection.folders[0].baseUrl = "https://folder.example.com/proxy";
     const serialized = serializeCollectionJson(result.collection);
     const document = JSON.parse(serialized);
     const parsed = parseCollectionJson(serialized);

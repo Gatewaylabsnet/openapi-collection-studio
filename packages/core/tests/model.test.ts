@@ -4,6 +4,7 @@ import {
   cloneRequest,
   countFolderRequests,
   createApinizerJwtRequest,
+  deriveApinizerBaseUrl,
   createCollection,
   createEmptyWorkspace,
   createFolder,
@@ -81,5 +82,12 @@ describe("model helpers", () => {
     expect(formPairs.client_secret).toBe("-");
     // The token endpoint itself needs no auth; credentials go in the body.
     expect(request.auth).toEqual({ type: "none" });
+  });
+
+  it("derives the Apinizer gateway origin from an API proxy URL", () => {
+    expect(deriveApinizerBaseUrl("https://api.tarimorman.gov.tr/dats/cks"))
+      .toBe("https://api.tarimorman.gov.tr");
+    expect(deriveApinizerBaseUrl("{{scheme}}://{{host}}/dats/cks")).toBeUndefined();
+    expect(deriveApinizerBaseUrl("not a URL")).toBeUndefined();
   });
 });

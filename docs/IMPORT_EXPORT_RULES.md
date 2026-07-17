@@ -22,7 +22,8 @@ Local `$ref` values are resolved where practical. Remote `$ref` values are retai
 
 - Every workspace has at least one environment; the final environment cannot be deleted.
 - New collections copy the active environment `baseUrl`.
-- A collection `baseUrl` overrides the active environment value during request preparation.
+- Base URL precedence during request preparation is: absolute request URL, nearest folder, collection, then active environment.
+- Nested folders inherit the nearest configured folder base URL; relative request paths are joined to the effective value.
 - Imported OpenAPI servers and portable variables populate the relevant collection/environment fields.
 
 ## OpenAPI Export
@@ -30,6 +31,7 @@ Local `$ref` values are resolved where practical. Remote `$ref` values are retai
 - Public functions `exportCollectionToOpenApi`, `exportCollectionToOpenApiResult`, and `exportCollectionToOpenApiDocument` remain stable.
 - Imported OpenAPI 3 operations prefer source-operation fidelity and overlay editable fields.
 - Selected folders export recursively; folder names can become tags.
+- Folder base URLs are emitted as OpenAPI operation-level `servers` when they differ from the collection server.
 - Parameters, request bodies, responses, and supported security schemes are mapped back to OpenAPI.
 - Literal examples are opt-in and secret-like values produce warnings.
 - Unused component schemas are pruned by default for scoped exports.

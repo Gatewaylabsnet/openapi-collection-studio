@@ -153,7 +153,12 @@ export function useDataController(state: StudioState, workspaceController: Works
       selectCollection(collectionId);
       setScreen("editor");
     },
-    onSelectFolder: (folderId) => setSelectedFolderId(folderId),
+    onSelectFolder: (folderId) => {
+      setSelectedFolderId(folderId);
+      setSelectedRequestId(undefined);
+      setResponse(undefined);
+      setScreen("editor");
+    },
     onSelectRequest: (requestId) => {
       setSelectedRequestId(requestId);
       setResponse(undefined);

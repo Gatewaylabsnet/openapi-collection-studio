@@ -1,5 +1,9 @@
-import type { ApiRequest, Collection, Environment, KeyValue } from "../model/types";
-import { resolveRequestVariables } from "../variables/resolveVariables";
+import type { ApiRequest, Collection, Environment, Folder, KeyValue } from "../model/types";
+import {
+  environmentToMap,
+  resolveRequestVariables,
+  resolveVariablesInText
+} from "../variables/resolveVariables";
 
 export interface PreparedHttpRequest {
   url: string;
@@ -21,15 +25,19 @@ export class MissingVariablesError extends Error {
 export function prepareHttpRequest(
   request: ApiRequest,
   environment?: Environment,
-  collection?: Pick<Collection, "baseUrl">
+  collection?: Pick<Collection, "baseUrl">,
+  folderPath: readonly Pick<Folder, "baseUrl">[] = []
 ): PreparedHttpRequest {
-  const resolved = resolveRequestVariables(request, environment, collection);
+  const resolved = resolveRequestVariables(request, environment, collection, folderPath);
   if (resolved.missing.length > 0) {
     throw new MissingVariablesError(resolved.missing);
   }
 
   const requestWithPathParams = replacePathParams(resolved.request);
-  const url = appendQueryParams(requestWithPathParams.url, requestWithPathParams.queryParams);
+  const url = appendQueryParams(
+    resolveRelativeUrl(requestWithPathParams.url, environment, collection, folderPath),
+    requestWithPathParams.queryParams
+  );
   const headers = keyValuesToHeaders(requestWithPathParams.headers);
 
   if (requestWithPathParams.auth.type === "bearer" && requestWithPathParams.auth.token) {
@@ -69,6 +77,32 @@ export function prepareHttpRequest(
     headers,
     body
   };
+}
+
+function resolveRelativeUrl(
+  requestUrl: string,
+  environment?: Environment,
+  collection?: Pick<Collection, "baseUrl">,
+  folderPath: readonly Pick<Folder, "baseUrl">[] = []
+): string {
+  if (/^https?:\/\//i.test(requestUrl) || !requestUrl.trim()) {
+    return requestUrl;
+  }
+  const variables = environmentToMap(environment, collection, folderPath);
+  const baseUrlInput = variables.baseUrl?.trim();
+  if (!baseUrlInput) {
+    return requestUrl;
+  }
+  const baseUrl = resolveVariablesInText(baseUrlInput, variables);
+  if (baseUrl.missing.length > 0) {
+    throw new MissingVariablesError(baseUrl.missing);
+  }
+  if (!/^https?:\/\//i.test(baseUrl.value)) {
+    return requestUrl;
+  }
+  const normalizedBase = `${baseUrl.value.replace(/\/+$/, "")}/`;
+  const normalizedRequest = requestUrl.replace(/^\/+/, "");
+  return new URL(normalizedRequest, normalizedBase).toString();
 }
 
 function replacePathParams(request: ApiRequest): ApiRequest {

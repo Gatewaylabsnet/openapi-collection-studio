@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCollection,
   createEnvironment,
+  createFolder,
   createKeyValue,
   createRequest,
   prepareHttpRequest,
@@ -70,5 +71,45 @@ describe("variable resolver", () => {
     const prepared = prepareHttpRequest(request, environment, collection);
 
     expect(prepared.url).toBe("https://collection.example.com/orders");
+  });
+
+  it("uses the nearest folder base URL before collection and environment values", () => {
+    const collection = createCollection("Proxy collection");
+    collection.baseUrl = "https://collection.example.com/api";
+    const parent = createFolder("Proxy A");
+    parent.baseUrl = "https://proxy-a.example.com/service";
+    const child = createFolder("Nested");
+    child.baseUrl = "https://proxy-b.example.com/other";
+    const request = createRequest({ name: "List", url: "{{baseUrl}}/items" });
+
+    const prepared = prepareHttpRequest(request, undefined, collection, [parent, child]);
+
+    expect(prepared.url).toBe("https://proxy-b.example.com/other/items");
+  });
+
+  it("inherits a parent folder base URL and resolves relative request URLs", () => {
+    const collection = createCollection("Proxy collection");
+    collection.baseUrl = "https://collection.example.com/api";
+    const parent = createFolder("Proxy");
+    parent.baseUrl = "https://proxy.example.com/service/v1";
+    const child = createFolder("Nested");
+    const request = createRequest({ name: "List", url: "/items" });
+
+    const prepared = prepareHttpRequest(request, undefined, collection, [parent, child]);
+
+    expect(prepared.url).toBe("https://proxy.example.com/service/v1/items");
+  });
+
+  it("keeps an absolute request URL independent from folder base URLs", () => {
+    const folder = createFolder("Proxy");
+    folder.baseUrl = "https://proxy.example.com/service";
+    const request = createRequest({
+      name: "Auth",
+      url: "https://api.tarimorman.gov.tr/auth/jwt"
+    });
+
+    const prepared = prepareHttpRequest(request, undefined, undefined, [folder]);
+
+    expect(prepared.url).toBe("https://api.tarimorman.gov.tr/auth/jwt");
   });
 });

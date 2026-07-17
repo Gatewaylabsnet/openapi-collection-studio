@@ -121,6 +121,57 @@ describe("renderer workflows", () => {
     await screen.findByText("Get account details");
   });
 
+  it("edits a folder base URL and sends its inherited folder path", async () => {
+    const workspace = createEmptyWorkspace("Proxy workspace");
+    const collection = createCollection("Demo API");
+    collection.baseUrl = "https://api.example.com/default";
+    const parent = createFolder("Proxy A");
+    parent.baseUrl = "https://proxy-a.example.com/service";
+    const child = createFolder("Orders");
+    child.requests.push(createRequest({ name: "List orders", method: "GET", url: "/orders" }));
+    parent.folders.push(child);
+    collection.folders.push(parent);
+    workspace.collections.push(collection);
+    const api = studioMock(workspace);
+
+    const { user } = await renderApp(api);
+    await user.click(screen.getByRole("button", { name: /Orders/ }));
+    const folderBaseUrl = screen.getByRole("textbox", { name: "Folder base URL" });
+    expect(folderBaseUrl.getAttribute("placeholder")).toContain("https://proxy-a.example.com/service");
+    await user.type(folderBaseUrl, "https://proxy-b.example.com/orders");
+
+    await user.click(screen.getByRole("button", { name: /List orders/ }));
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => expect(api.sendRequest).toHaveBeenCalledTimes(1));
+    expect(api.sendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "List orders" }),
+      expect.anything(),
+      expect.objectContaining({ baseUrl: "https://api.example.com/default" }),
+      [
+        { baseUrl: "https://proxy-a.example.com/service" },
+        { baseUrl: "https://proxy-b.example.com/orders" }
+      ]
+    );
+  });
+
+  it("creates Apinizer JWT in a dedicated folder with a derived gateway origin", async () => {
+    const workspace = createEmptyWorkspace("Apinizer workspace");
+    const collection = createCollection("DATS CKS");
+    collection.baseUrl = "https://api.tarimorman.gov.tr/dats/cks";
+    workspace.collections.push(collection);
+
+    const { user } = await renderApp(studioMock(workspace));
+    await user.click(screen.getByRole("button", { name: "New" }));
+    await user.click(screen.getByRole("menuitem", { name: "Apinizer JWT request" }));
+
+    expect((await screen.findAllByText("Apinizer Auth")).length).toBeGreaterThan(0);
+    expect((screen.getByRole("textbox", { name: "Folder base URL" }) as HTMLInputElement).value)
+      .toBe("https://api.tarimorman.gov.tr");
+    expect((screen.getByRole("textbox", { name: "Request URL" }) as HTMLInputElement).value)
+      .toBe("{{baseUrl}}/auth/jwt");
+  });
+
   it("copies the generated export preview to the clipboard", async () => {
     const { user } = await renderApp();
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);

@@ -1,4 +1,4 @@
-import type { ApiRequest, Collection, Environment, PostmanV3FolderSource, Workspace } from "@openapi-collection-studio/core";
+import type { ApiRequest, Collection, Environment, Folder, PostmanV3FolderSource, Workspace } from "@openapi-collection-studio/core";
 
 export interface AppSettings {
   requestTimeoutMs: number;
@@ -16,6 +16,7 @@ export interface SendRequestPayload {
   request: ApiRequest;
   environment?: Environment;
   collection?: Pick<Collection, "baseUrl">;
+  folderPath?: Array<Pick<Folder, "baseUrl">>;
 }
 
 export interface SendRequestResult {
@@ -78,7 +79,8 @@ export interface StudioApi {
   sendRequest(
     request: ApiRequest,
     environment?: Environment,
-    collection?: Pick<Collection, "baseUrl">
+    collection?: Pick<Collection, "baseUrl">,
+    folderPath?: Array<Pick<Folder, "baseUrl">>
   ): Promise<SendRequestResult>;
   saveExportFile(defaultPath: string, content: string): Promise<FileActionResult>;
   openImportFile(): Promise<OpenImportResult>;

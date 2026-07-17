@@ -18,7 +18,12 @@ export async function sendHttpRequest(payload: SendRequestPayload): Promise<Send
   }
 
   try {
-    const prepared = prepareHttpRequest(payload.request, payload.environment, payload.collection);
+    const prepared = prepareHttpRequest(
+      payload.request,
+      payload.environment,
+      payload.collection,
+      payload.folderPath
+    );
     const startedAt = performance.now();
     const response = await fetchWithProxy(
       prepared.url,

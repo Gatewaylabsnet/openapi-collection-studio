@@ -52,7 +52,13 @@ export function useRequestController(state: StudioState, workspaceController: Wo
     const requestId = activeRequest.id;
     setIsSending(true);
     setResponse(undefined);
-    const result = await window.studio.sendRequest(activeRequest, activeEnvironment, activeCollection);
+    const folderPath = activeRequestLocation?.folderPath.map(({ baseUrl }) => ({ baseUrl }));
+    const result = await window.studio.sendRequest(
+      activeRequest,
+      activeEnvironment,
+      activeCollection,
+      folderPath
+    );
     setResponse(result);
     if (!result.error) {
       setResponseHistory((current) => {

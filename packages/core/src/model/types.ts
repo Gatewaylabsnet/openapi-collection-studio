@@ -83,6 +83,8 @@ export interface ApiRequest {
 export interface Folder {
   id: string;
   name: string;
+  /** Overrides the collection/environment base URL for requests in this subtree. */
+  baseUrl?: string;
   description?: string;
   folders: Folder[];
   requests: ApiRequest[];
