@@ -9,6 +9,8 @@ import { ResponsePanel } from "./ResponsePanel";
 
 export function RequestWorkspace({
   activeCollection,
+  activeEnvironmentBaseUrl,
+  activeEnvironmentName,
   activeFolder,
   activeRequest,
   requestTab,
@@ -29,6 +31,8 @@ export function RequestWorkspace({
   responseHistory
 }: {
   activeCollection?: Collection;
+  activeEnvironmentBaseUrl?: string;
+  activeEnvironmentName?: string;
   activeFolder?: Folder;
   activeRequest?: ApiRequest;
   requestTab: RequestTab;
@@ -48,28 +52,24 @@ export function RequestWorkspace({
   onAssignResponseValue(path: string, variableName: string): void;
   environmentVariableNames: string[];
 }) {
+  const routing = activeCollection
+    ? baseUrlRouting(
+        activeCollection,
+        activeFolder,
+        folderOptions,
+        activeEnvironmentBaseUrl,
+        activeEnvironmentName
+      )
+    : undefined;
+
   return (
     <section className="editor-layout">
       <div className="request-panel">
         {activeCollection && (
-          <div className="base-url-fields">
+          <div className="base-url-panel">
             <label className="field collection-base-url">
-              <span>Collection base URL</span>
-              <input
-                aria-label="Collection base URL"
-                onChange={(event) =>
-                  onUpdateCollection((collection) => {
-                    const value = event.target.value.trim();
-                    collection.baseUrl = value || undefined;
-                  })
-                }
-                placeholder="https://api.example.com/service"
-                value={activeCollection.baseUrl ?? ""}
-              />
-            </label>
-            {activeFolder && (
-              <label className="field collection-base-url">
-                <span>Folder base URL</span>
+              <span>{activeFolder ? "Folder base URL" : "Collection base URL"}</span>
+              {activeFolder ? (
                 <input
                   aria-label="Folder base URL"
                   onChange={(event) =>
@@ -78,12 +78,38 @@ export function RequestWorkspace({
                       folder.baseUrl = value || undefined;
                     })
                   }
-                  placeholder={inheritedBaseUrl(activeCollection, activeFolder, folderOptions)}
+                  placeholder={inheritedBaseUrl(
+                    activeCollection,
+                    activeFolder,
+                    folderOptions,
+                    activeEnvironmentBaseUrl
+                  )}
                   value={activeFolder.baseUrl ?? ""}
                 />
-                <small>Overrides the collection for this folder and its children. Leave empty to inherit.</small>
-              </label>
-            )}
+              ) : (
+                <input
+                  aria-label="Collection base URL"
+                  onChange={(event) =>
+                    onUpdateCollection((collection) => {
+                      const value = event.target.value.trim();
+                      collection.baseUrl = value || undefined;
+                    })
+                  }
+                  placeholder="https://api.example.com/service"
+                  value={activeCollection.baseUrl ?? ""}
+                />
+              )}
+              <small>
+                {activeFolder
+                  ? "Applies to this folder and its children. Clear it to inherit."
+                  : "Used by this collection unless a folder overrides it."}
+              </small>
+            </label>
+            <div className="base-url-effective" role="note">
+              <span>Effective base URL</span>
+              <code title={routing?.effective}>{routing?.effective || "Not configured"}</code>
+              <small>{routing?.source}</small>
+            </div>
           </div>
         )}
         {activeRequest ? (
@@ -192,11 +218,62 @@ export function RequestWorkspace({
 function inheritedBaseUrl(
   collection: Collection,
   folder: Folder,
-  folderOptions: ReturnType<typeof flattenFolders>
+  folderOptions: ReturnType<typeof flattenFolders>,
+  environmentBaseUrl?: string
 ): string {
   const path = folderOptions.find((item) => item.folder.id === folder.id)?.path ?? [];
-  const inherited = folderBaseUrl(path.slice(0, -1)) ?? collection.baseUrl;
+  const inherited = folderBaseUrl(path.slice(0, -1)) ?? collection.baseUrl ?? environmentBaseUrl;
   return inherited ? `Inherited: ${inherited}` : "https://api.example.com/proxy";
+}
+
+function baseUrlRouting(
+  collection: Collection,
+  folder: Folder | undefined,
+  folderOptions: ReturnType<typeof flattenFolders>,
+  environmentBaseUrl?: string,
+  environmentName?: string
+): { effective: string; source: string } {
+  if (!folder) {
+    const collectionValue = collection.baseUrl?.trim() ?? "";
+    const environmentValue = environmentBaseUrl?.trim() ?? "";
+    const effective = collectionValue || environmentValue;
+    return {
+      effective,
+      source: collectionValue
+        ? "Collection default"
+        : environmentValue
+          ? `Inherited from ${environmentName ?? "active"} environment`
+          : "Add a collection base URL to resolve relative requests."
+    };
+  }
+
+  const path = folderOptions.find((item) => item.folder.id === folder.id)?.path ?? [folder];
+  const ownValue = folder.baseUrl?.trim() ?? "";
+  if (ownValue) {
+    return { effective: ownValue, source: `${folder.name} folder override` };
+  }
+
+  const inheritedFolder = [...path.slice(0, -1)]
+    .reverse()
+    .find((candidate) => candidate.baseUrl?.trim());
+  if (inheritedFolder?.baseUrl) {
+    return {
+      effective: inheritedFolder.baseUrl.trim(),
+      source: `Inherited from ${inheritedFolder.name}`
+    };
+  }
+
+  const collectionValue = collection.baseUrl?.trim() ?? "";
+  const environmentValue = environmentBaseUrl?.trim() ?? "";
+  const effective = collectionValue || environmentValue;
+  return {
+    effective,
+    source: collectionValue
+      ? `Inherited from ${collection.name}`
+      : environmentValue
+        ? `Inherited from ${environmentName ?? "active"} environment`
+      : "No folder or collection base URL is configured."
+  };
 }
 
 function RequestNameInput({ name, onCommit }: { name: string; onCommit(name: string): void }) {

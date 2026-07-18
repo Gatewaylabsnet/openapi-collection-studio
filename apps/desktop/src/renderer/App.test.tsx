@@ -135,9 +135,11 @@ describe("renderer workflows", () => {
     const api = studioMock(workspace);
 
     const { user } = await renderApp(api);
-    await user.click(screen.getByRole("button", { name: /Orders/ }));
+    await user.click(screen.getByRole("button", { name: /^Orders/ }));
     const folderBaseUrl = screen.getByRole("textbox", { name: "Folder base URL" });
+    expect(screen.queryByRole("textbox", { name: "Collection base URL" })).toBeNull();
     expect(folderBaseUrl.getAttribute("placeholder")).toContain("https://proxy-a.example.com/service");
+    expect(screen.getByText("Inherited from Proxy A")).toBeTruthy();
     await user.type(folderBaseUrl, "https://proxy-b.example.com/orders");
 
     await user.click(screen.getByRole("button", { name: /List orders/ }));
@@ -186,6 +188,61 @@ describe("renderer workflows", () => {
 });
 
 describe("collection tree", () => {
+  it("collapses nested folders independently and reveals matches while searching", async () => {
+    const collection = createCollection("Hierarchy API");
+    const accounts = createFolder("Accounts");
+    const orders = createFolder("Orders");
+    accounts.requests.push(createRequest({ name: "Find account", method: "GET", url: "/accounts/{id}" }));
+    orders.requests.push(createRequest({ name: "Find order", method: "GET", url: "/orders/{id}" }));
+    accounts.folders.push(orders);
+    collection.folders.push(accounts);
+    const noop = vi.fn();
+    const onSelectFolder = vi.fn();
+    const user = userEvent.setup();
+
+    render(<CollectionTree
+      activeCollectionId={collection.id}
+      collections={[collection]}
+      onDeleteCollection={noop}
+      onDeleteFolder={noop}
+      onDeleteRequest={noop}
+      onDuplicateFolder={noop}
+      onDuplicateRequest={noop}
+      onMoveFolderTo={noop}
+      onMoveRequestTo={noop}
+      onRenameCollection={noop}
+      onRenameFolder={noop}
+      onRenameRequest={noop}
+      onSelectCollection={noop}
+      onSelectFolder={onSelectFolder}
+      onSelectRequest={noop}
+    />);
+
+    const accountsButton = screen.getByRole("button", { name: /^Accounts/ });
+    const collapseAccounts = screen.getByRole("button", { name: "Collapse Accounts" });
+    expect(collapseAccounts.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Find account")).toBeTruthy();
+    expect(screen.getByText("Find order")).toBeTruthy();
+
+    await user.click(collapseAccounts);
+    expect(screen.getByRole("button", { name: "Expand Accounts" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Find account")).toBeNull();
+    expect(screen.queryByText("Find order")).toBeNull();
+
+    await user.type(screen.getByRole("textbox", { name: "Search requests" }), "order");
+    expect(screen.getByText("Find order")).toBeTruthy();
+    await user.clear(screen.getByRole("textbox", { name: "Search requests" }));
+    expect(screen.queryByText("Find order")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Expand Accounts" }));
+    await user.click(screen.getByRole("button", { name: "Collapse Orders" }));
+    expect(screen.getByText("Find account")).toBeTruthy();
+    expect(screen.queryByText("Find order")).toBeNull();
+
+    await user.click(accountsButton);
+    expect(onSelectFolder).toHaveBeenCalledWith(accounts.id);
+  });
+
   it("supports selection, search, and inline rename", async () => {
     const first = createCollection("First API");
     first.requests.push(createRequest({ name: "Find account", method: "GET", url: "/account" }));
@@ -211,12 +268,12 @@ describe("collection tree", () => {
       onSelectRequest={noop}
     />);
 
-    await user.click(screen.getByRole("button", { name: /First API/ }));
+    await user.click(screen.getByRole("button", { name: "First API" }));
     expect(onSelectCollection).toHaveBeenCalledWith(first.id);
     await user.type(screen.getByRole("textbox", { name: "Search requests" }), "account");
     expect(screen.getByText("Find account")).toBeTruthy();
     await user.clear(screen.getByRole("textbox", { name: "Search requests" }));
-    await user.dblClick(screen.getByRole("button", { name: /Second API/ }));
+    await user.dblClick(screen.getByRole("button", { name: "Second API" }));
     const renameInput = screen.getByDisplayValue("Second API");
     await user.clear(renameInput);
     await user.type(renameInput, "Renamed API{Enter}");

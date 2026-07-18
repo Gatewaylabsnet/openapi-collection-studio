@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, FileText, Folder, Layers } from "lucide-react";
+import { FileText, Folder, Layers } from "lucide-react";
 import type { ApiRequest, Collection, Folder as FolderType } from "@openapi-collection-studio/core";
 import { folderMatchCount, requestMatches } from "./match";
 import { TreeRow } from "./TreeRow";
@@ -37,12 +37,10 @@ export function CollectionNode({
       <TreeRow
         className={isActive ? "tree__item is-active" : "tree__item"}
         icon={
-          <>
-            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            <Layers size={16} />
-          </>
+          <Layers size={16} />
         }
         id={collection.id}
+        expanded={expanded}
         label={collection.name}
         context={context}
         dropClass={isRootDropTarget ? "is-drop-inside" : ""}
@@ -62,8 +60,8 @@ export function CollectionNode({
         }}
         onSelect={() => {
           context.onSelectCollection(collection.id);
-          onToggleExpanded();
         }}
+        onToggleExpanded={onToggleExpanded}
         onRename={(name) => context.onRenameCollection(collection.id, name)}
         onDelete={() => context.onDeleteCollection(collection.id)}
       />
@@ -106,18 +104,18 @@ function FolderNode({
     context.dropHint === `folder:${folder.id}` &&
     context.drag !== undefined &&
     !(context.drag.kind === "folder" && context.drag.id === folder.id);
+  const hasChildren = folder.requests.length > 0 || folder.folders.length > 0;
+  const expanded = query.length > 0 || context.expandedFolderIds.has(folder.id);
 
   return (
     <div className="tree__folder">
       <TreeRow
         className={folder.id === context.selectedFolderId ? "tree__item is-selected" : "tree__item"}
         icon={
-          <>
-            <ChevronRight size={14} />
-            <Folder size={16} />
-          </>
+          <Folder size={16} />
         }
         id={folder.id}
+        expanded={hasChildren ? expanded : undefined}
         indent={8 + depth * 14}
         label={folder.name}
         badge={query ? undefined : String(folder.requests.length || "")}
@@ -151,26 +149,31 @@ function FolderNode({
           context.setDrag(undefined);
           context.setDropHint(undefined);
         }}
-        onSelect={() => context.onSelectFolder(folder.id)}
+        onSelect={() => {
+          context.onSelectFolder(folder.id);
+        }}
+        onToggleExpanded={hasChildren ? () => context.toggleFolderExpanded(folder.id) : undefined}
         onRename={(name) => context.onRenameFolder(folder.id, name)}
         onDelete={() => context.onDeleteFolder(folder.id)}
         onDuplicate={() => context.onDuplicateFolder(folder.id)}
       />
-      <div>
-        {visibleRequests.map((request) => (
-          <RequestNode
-            collectionId={collectionId}
-            containerFolderId={folder.id}
-            context={context}
-            depth={depth + 1}
-            key={request.id}
-            request={request}
-          />
-        ))}
-        {visibleFolders.map((child) => (
-          <FolderNode collectionId={collectionId} context={context} depth={depth + 1} folder={child} key={child.id} />
-        ))}
-      </div>
+      {expanded && (
+        <div className="tree__children">
+          {visibleRequests.map((request) => (
+            <RequestNode
+              collectionId={collectionId}
+              containerFolderId={folder.id}
+              context={context}
+              depth={depth + 1}
+              key={request.id}
+              request={request}
+            />
+          ))}
+          {visibleFolders.map((child) => (
+            <FolderNode collectionId={collectionId} context={context} depth={depth + 1} folder={child} key={child.id} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -39,6 +39,8 @@ export interface TreeContext extends TreeActions {
   selectedFolderId?: string;
   selectedRequestId?: string;
   query: string;
+  expandedFolderIds: ReadonlySet<string>;
+  toggleFolderExpanded(folderId: string): void;
   editingId?: string;
   setEditingId(id?: string): void;
   drag?: DragState;

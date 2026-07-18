@@ -71,6 +71,27 @@
   transition: background-color 0.12s ease;
 }
 
+.tree-row__toggle {
+  display: inline-flex;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tree-row__toggle:hover,
+.tree-row__toggle:focus-visible {
+  color: #1f2f45;
+  background: #dfe8f2;
+}
+
 .tree-row__label {
   flex: 1;
   overflow: hidden;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Copy, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Pencil, Trash2 } from "lucide-react";
 import type { TreeContext } from "./types";
 
 export function TreeRow({
@@ -8,6 +8,7 @@ export function TreeRow({
   icon,
   label,
   badge,
+  expanded,
   indent,
   context,
   draggable,
@@ -17,6 +18,7 @@ export function TreeRow({
   onDragOver,
   onDrop,
   onSelect,
+  onToggleExpanded,
   onRename,
   onDelete,
   onDuplicate
@@ -26,6 +28,7 @@ export function TreeRow({
   icon: React.ReactNode;
   label: string;
   badge?: string;
+  expanded?: boolean;
   indent?: number;
   context: TreeContext;
   draggable?: boolean;
@@ -35,6 +38,7 @@ export function TreeRow({
   onDragOver?(): void;
   onDrop?(): void;
   onSelect(): void;
+  onToggleExpanded?(): void;
   onRename(name: string): void;
   onDelete(): void;
   onDuplicate?(): void;
@@ -61,7 +65,11 @@ export function TreeRow({
 
   return (
     <div
-      className={dropClass ? `tree-row ${dropClass}` : "tree-row"}
+      className={[
+        "tree-row",
+        onToggleExpanded ? "tree-row--expandable" : "",
+        dropClass ?? ""
+      ].filter(Boolean).join(" ")}
       draggable={draggable && !isEditing}
       onDragStart={
         onDragStart
@@ -93,6 +101,18 @@ export function TreeRow({
       }
       style={indent ? { paddingLeft: `${indent}px` } : undefined}
     >
+      {onToggleExpanded && (
+        <button
+          aria-expanded={expanded}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+          className="tree-row__toggle"
+          onClick={onToggleExpanded}
+          title={expanded ? "Collapse" : "Expand"}
+          type="button"
+        >
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+      )}
       {isEditing ? (
         <div className={`${className} tree-row__edit`}>
           {icon}

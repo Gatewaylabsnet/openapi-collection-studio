@@ -29,16 +29,50 @@
   margin-bottom: 0;
 }
 
-.base-url-fields {
+.base-url-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.75fr);
   gap: 10px;
+  align-items: stretch;
   margin-bottom: 10px;
 }
 
-.base-url-fields small {
+.base-url-panel small {
   color: #64748b;
   font-size: 11px;
+}
+
+.base-url-effective {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid #dce1e8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.base-url-effective > span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.base-url-effective code {
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 960px) {
+  .base-url-panel {
+    grid-template-columns: 1fr;
+  }
 }
 
 .environment-base-url {

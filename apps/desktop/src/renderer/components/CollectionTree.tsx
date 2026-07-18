@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
+import { findRequest, flattenFolders } from "@openapi-collection-studio/core";
 import { CollectionNode } from "./tree/nodes";
 import type { CollectionTreeProps, DragState, TreeContext } from "./tree/types";
 
@@ -15,6 +16,15 @@ export function CollectionTree(props: CollectionTreeProps) {
     const firstExpanded = activeCollectionId ?? collections[0]?.id;
     return firstExpanded ? new Set([firstExpanded]) : new Set();
   });
+  const initialFolderIds = collections.flatMap((collection) =>
+    flattenFolders(collection).map(({ folder }) => folder.id)
+  );
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(
+    () => new Set(initialFolderIds)
+  );
+  const knownFolderIds = useRef(new Set(initialFolderIds));
+  const previousSelectedFolderId = useRef<string>();
+  const previousSelectedRequestId = useRef<string>();
   const query = search.trim().toLowerCase();
 
   useEffect(() => {
@@ -31,13 +41,54 @@ export function CollectionTree(props: CollectionTreeProps) {
     setExpandedCollectionIds((current) => {
       const collectionIds = new Set(collections.map((collection) => collection.id));
       const next = new Set([...current].filter((id) => collectionIds.has(id)));
-      if (next.size === 0) {
-        const firstExpanded = activeCollectionId ?? collections[0]?.id;
-        if (firstExpanded) next.add(firstExpanded);
-      }
       return next;
     });
-  }, [activeCollectionId, collections]);
+  }, [collections]);
+
+  useEffect(() => {
+    const currentFolderIds = new Set(
+      collections.flatMap((collection) =>
+        flattenFolders(collection).map(({ folder }) => folder.id)
+      )
+    );
+    const addedFolderIds = [...currentFolderIds].filter((id) => !knownFolderIds.current.has(id));
+    knownFolderIds.current = currentFolderIds;
+    setExpandedFolderIds((current) => {
+      const next = new Set([...current].filter((id) => currentFolderIds.has(id)));
+      for (const id of addedFolderIds) next.add(id);
+      return next;
+    });
+  }, [collections]);
+
+  useEffect(() => {
+    if (props.selectedFolderId === previousSelectedFolderId.current) return;
+    previousSelectedFolderId.current = props.selectedFolderId;
+    if (!props.selectedFolderId) return;
+    const location = collections
+      .flatMap((collection) => flattenFolders(collection))
+      .find(({ folder }) => folder.id === props.selectedFolderId);
+    if (!location) return;
+    setExpandedFolderIds((current) => {
+      const next = new Set(current);
+      for (const folder of location.path.slice(0, -1)) next.add(folder.id);
+      return next;
+    });
+  }, [collections, props.selectedFolderId]);
+
+  useEffect(() => {
+    if (props.selectedRequestId === previousSelectedRequestId.current) return;
+    previousSelectedRequestId.current = props.selectedRequestId;
+    if (!props.selectedRequestId) return;
+    const location = collections
+      .map((collection) => findRequest(collection, props.selectedRequestId!))
+      .find(Boolean);
+    if (!location) return;
+    setExpandedFolderIds((current) => {
+      const next = new Set(current);
+      for (const folder of location.folderPath) next.add(folder.id);
+      return next;
+    });
+  }, [collections, props.selectedRequestId]);
 
   const toggleCollectionExpanded = (collectionId: string) => {
     setExpandedCollectionIds((current) => {
@@ -48,8 +99,26 @@ export function CollectionTree(props: CollectionTreeProps) {
     });
   };
 
+  const toggleFolderExpanded = (folderId: string) => {
+    setExpandedFolderIds((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  };
+
   const context: TreeContext = {
-    ...props, query, editingId, setEditingId, drag, setDrag, dropHint, setDropHint
+    ...props,
+    query,
+    expandedFolderIds,
+    toggleFolderExpanded,
+    editingId,
+    setEditingId,
+    drag,
+    setDrag,
+    dropHint,
+    setDropHint
   };
 
   return (

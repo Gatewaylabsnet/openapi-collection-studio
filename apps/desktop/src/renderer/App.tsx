@@ -1,6 +1,6 @@
 import { findFolder, flattenFolders } from "@openapi-collection-studio/core";
 import { BrandMark } from "./app/BrandMark";
-import { saveStatusLabel } from "./app/helpers";
+import { environmentBaseUrl, saveStatusLabel } from "./app/helpers";
 import { CollectionsSidebar, WelcomeMain } from "./app/screens/CollectionsSidebar";
 import { EnvironmentScreen } from "./app/screens/EnvironmentScreen";
 import { ExportScreen } from "./app/screens/ExportScreen";
@@ -144,6 +144,8 @@ export function App() {
               activeCollection={activeCollection}
               activeFolder={activeFolder}
               activeRequest={activeRequest}
+              activeEnvironmentBaseUrl={activeEnvironment ? environmentBaseUrl(activeEnvironment) : undefined}
+              activeEnvironmentName={activeEnvironment?.name}
               folderOptions={activeCollection ? flattenFolders(activeCollection) : []}
               isSending={isSending}
               onAddJwtRequest={() => addRequest("jwt")}
