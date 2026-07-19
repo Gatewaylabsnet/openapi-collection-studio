@@ -30,14 +30,14 @@
   </a>
 </p>
 
-![Specfold desktop app showing the collection tree, collection base URL, request editor, and response panel](docs/assets/specfold-main.png)
+![Specfold v1.2.1 showing independent collection and folder collapse controls, a focused folder base URL editor, the effective routing source, and a request editor](docs/assets/specfold-main.png)
 
 Specfold helps developers turn API specifications into a practical request workspace:
 
 ```text
 OpenAPI / Swagger / Postman / Insomnia / HAR / .http / cURL
         -> editable collections, folders, and requests
-        -> local environments and collection-level base URLs
+        -> local environments and scoped collection/folder base URLs
         -> request testing, response inspection, and variable capture
         -> OpenAPI YAML / JSON export
 ```
@@ -74,6 +74,13 @@ See the [Code signing policy](docs/CODE_SIGNING_POLICY.md) for signing scope,
 approval roles, build provenance, privacy, and the current SignPath Foundation
 application status. Release artifacts remain unsigned until that policy
 explicitly states that signing is active.
+
+### v1.2.1 Highlights
+
+- Collection and folder rows now use dedicated chevrons, so expanding or collapsing the tree does not change the current selection.
+- Nested folders preserve their expanded state, and search can reveal matches without discarding that state.
+- The request workspace shows one base URL editor for the selected environment, collection, or folder instead of showing every scope at once.
+- An effective Base URL summary explains the resolved URL and whether it came from the environment, collection, or nearest folder.
 
 ## What It Does
 
@@ -123,6 +130,7 @@ Specfold separates environment defaults from collection- and folder-level routin
 - Absolute request URLs always stay unchanged. Relative request URLs are joined to the effective base URL, so both `/orders` and `{{baseUrl}}/orders` are supported.
 - Collection `baseUrl` can be edited directly from the request workspace, even when no request is selected.
 - Select a folder in the collection tree to edit its base URL. Leaving it empty restores inheritance.
+- The request workspace keeps only the selected scope's base URL field visible and shows the resolved effective URL and source beside it.
 - Updating an environment `baseUrl` can optionally apply the same value to all collection base URLs.
 - Imported OpenAPI/Swagger `servers` are mapped into collection base URL data.
 
