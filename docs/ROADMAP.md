@@ -15,6 +15,14 @@
 - Production modules below 500 lines with shared IPC contracts and format-specific import/export modules.
 - React Testing Library coverage and tagless release-package verification with `SHA256SUMS.txt`.
 
+## v1.3.1–v1.5 (In progress)
+
+- Correctness and secret-safety hotfixes for cURL, native exports, response examples, and literal request credentials.
+- System/Light/Dark appearance, Import Doctor, route inspection, response copy/save-example tools, and named connection profiles.
+- Safe re-import diffs, Postman v2.1 and `.http` export, plus portable OAuth token recipes.
+
+Acceptance criteria and release gates: [v1.3.1–v1.5 delivery plan](V1_3_TO_V1_5_DELIVERY_PLAN.md).
+
 ## Later
 
 - Windows code signing.

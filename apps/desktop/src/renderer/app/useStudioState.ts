@@ -6,9 +6,9 @@ import {
   looksLikeCurl, parseCurlCommand, requestToCurl, findFolder, findRequest, flattenRequests,
   importDocument, importPostmanV3Folder, listOperations, previewImportDocument,
   previewPostmanV3Folder, relocateFolder, relocateRequest, removeFolder, removeRequest,
-  serializeCollectionJson,
+  serializeCollectionJson, exportCollectionToHttpFile, exportCollectionToPostman,
   type ApiRequest, type Collection, type Environment, type ExportWarning, type GroupingStrategy,
-  type ImportOperationSummary, type OpenApiCheckResult, type PostmanV3FolderSource, type Workspace
+  type ImportOperationSummary, type OpenApiCheckResult, type PostmanV3FolderSource, type ReimportDiff, type Workspace
 } from "@openapi-collection-studio/core";
 import { firstRequestId } from "./helpers";
 import { DEFAULT_SETTINGS } from "./types";
@@ -39,6 +39,8 @@ export function useStudioState() {
   const [importError, setImportError] = useState("");
   const [importSummary, setImportSummary] = useState("");
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [importTargetCollectionId, setImportTargetCollectionId] = useState("");
+  const [importDiff, setImportDiff] = useState<ReimportDiff>();
   const [exportFormat, setExportFormat] = useState<ExportFormat>("openapi-yaml");
   const [exportFolderIds, setExportFolderIds] = useState<string[]>([]);
   const [includeAllComponents, setIncludeAllComponents] = useState(true);
@@ -155,6 +157,12 @@ export function useStudioState() {
         warnings: collectCollectionSecretWarnings(activeCollection)
       };
     }
+    if (exportFormat === "postman-json" || exportFormat === "http-file") {
+      return {
+        content: exportFormat === "postman-json" ? exportCollectionToPostman(activeCollection) : exportCollectionToHttpFile(activeCollection),
+        warnings: collectCollectionSecretWarnings(activeCollection)
+      };
+    }
     const result = exportCollectionToOpenApiResult(activeCollection, {
       format: exportFormat === "openapi-json" ? "json" : "yaml",
       folderIds: exportFolderIds,
@@ -214,6 +222,7 @@ export function useStudioState() {
     importUrl, setImportUrl, isFetchingImport, setIsFetchingImport, importOperations,
     setImportOperations, selectedImportKeys, setSelectedImportKeys, lastImportIndexRef,
     grouping, setGrouping, importError, setImportError, importSummary, setImportSummary, importWarnings, setImportWarnings,
+    importTargetCollectionId, setImportTargetCollectionId, importDiff, setImportDiff,
     exportFormat, setExportFormat, exportFolderIds, setExportFolderIds, includeAllComponents,
     setIncludeAllComponents, includeExamples, setIncludeExamples, pruneUnusedComponents,
     setPruneUnusedComponents, preferSourceOperation, setPreferSourceOperation, savedExportPath,

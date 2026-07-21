@@ -4,7 +4,7 @@ import type { AppSettings as SharedAppSettings, ThemePreference } from "../../sh
 export type Screen = "editor" | "import" | "environments" | "export" | "settings";
 export type RequestTab = "params" | "auth" | "headers" | "body";
 export type ResponseTab = "body" | "headers" | "raw";
-export type ExportFormat = "openapi-yaml" | "openapi-json" | "collection-json";
+export type ExportFormat = "openapi-yaml" | "openapi-json" | "collection-json" | "postman-json" | "http-file";
 export type SaveStatus = "saved" | "dirty" | "saving" | "error";
 
 export type AppSettings = SharedAppSettings;

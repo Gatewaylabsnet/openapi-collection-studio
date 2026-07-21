@@ -40,7 +40,7 @@ export function useDataController(state: StudioState, workspaceController: Works
       return;
     }
     const extension =
-      exportFormat === "openapi-yaml" ? "yaml" : exportFormat === "openapi-json" ? "json" : "collection.json";
+      exportFormat === "openapi-yaml" ? "yaml" : exportFormat === "http-file" ? "http" : exportFormat === "collection-json" ? "collection.json" : "json";
     const result = await window.studio.saveExportFile(
       `${slug(activeCollection.name)}.${extension}`,
       exportContent

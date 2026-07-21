@@ -1,5 +1,5 @@
 import {
-  cloneFolder, cloneRequest, countFolderRequests, createApinizerJwtRequest, createCollection,
+  cloneFolder, cloneRequest, countFolderRequests, createApinizerJwtRequest, createCollection, createOAuthTokenRequest,
   createEmptyWorkspace, createEnvironment, createFolder, createId, createJwtRequest,
   deriveApinizerBaseUrl,
   createKeyValue, createRequest, checkOpenApiDocument, exportCollectionToOpenApiResult,
@@ -98,11 +98,11 @@ export function useWorkspaceController(state: StudioState) {
     setSelectedFolderId(folder.id);
   };
 
-  const addRequest = (kind: "blank" | "jwt" | "apinizer-jwt") => {
+  const addRequest = (kind: "blank" | "jwt" | "apinizer-jwt" | "oauth-client" | "oauth-password") => {
     if (!activeCollection) {
       return;
     }
-    const isAuthTemplate = kind === "jwt" || kind === "apinizer-jwt";
+    const isAuthTemplate = kind !== "blank";
     if (isAuthTemplate && !activeEnvironment) {
       setNotice("Create or select an environment before adding an Auth folder.");
       setScreen("environments");
@@ -113,6 +113,10 @@ export function useWorkspaceController(state: StudioState) {
         ? createJwtRequest()
         : kind === "apinizer-jwt"
           ? createApinizerJwtRequest()
+          : kind === "oauth-client"
+            ? createOAuthTokenRequest("client_credentials")
+            : kind === "oauth-password"
+              ? createOAuthTokenRequest("password")
           : createRequest({ name: "New Request" });
     const authFolderName = kind === "apinizer-jwt" ? "Apinizer Auth" : "Auth";
     const existingAuthFolder = activeCollection.folders.find(

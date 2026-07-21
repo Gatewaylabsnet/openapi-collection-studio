@@ -1,6 +1,6 @@
 {
   "name": "openapi-collection-studio",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Local-first desktop REST API collection editor for OpenAPI and Swagger imports.",
   "author": "GatewayLabs (https://gatewaylabs.net)",
@@ -19,6 +19,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "check:source-size": "node scripts/check-source-size.mjs",
+    "release:check": "npm run check:source-size && npm run typecheck && npm test && npm run build",
     "package:win:portable": "npm run package:win:portable --workspace @openapi-collection-studio/desktop",
     "package:win:installer": "npm run package:win:installer --workspace @openapi-collection-studio/desktop",
     "package:win": "npm run package:win --workspace @openapi-collection-studio/desktop",

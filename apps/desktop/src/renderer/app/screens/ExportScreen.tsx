@@ -45,7 +45,7 @@ export function ExportScreen({
   onSave(): void;
 }) {
   const folders = activeCollection ? flattenFolders(activeCollection) : [];
-  const isOpenApi = exportFormat !== "collection-json";
+  const isOpenApi = exportFormat === "openapi-yaml" || exportFormat === "openapi-json";
   const secretWarnings = exportWarnings.filter((warning) => warning.kind === "secret");
   const otherWarnings = exportWarnings.filter((warning) => warning.kind !== "secret");
 
@@ -59,35 +59,43 @@ export function ExportScreen({
             <option value="openapi-yaml">OpenAPI YAML</option>
             <option value="openapi-json">OpenAPI JSON</option>
             <option value="collection-json">Collection JSON</option>
+            <option value="postman-json">Postman Collection v2.1</option>
+            <option value="http-file">HTTP file (.http)</option>
           </select>
         </label>
-        <h3>Scope</h3>
-        <label className="radio-row">
-          <input
-            checked={exportFolderIds.length === 0}
-            onChange={() => onExportFolderIdsChange([])}
-            type="radio"
-          />
-          <span>Entire collection</span>
-        </label>
-        <div className="folder-checks">
-          {folders.map(({ folder, path }) => (
-            <label className="check-row" key={folder.id}>
+        {isOpenApi ? (
+          <>
+            <h3>Scope</h3>
+            <label className="radio-row">
               <input
-                checked={exportFolderIds.includes(folder.id)}
-                onChange={(event) => {
-                  if (event.target.checked) {
-                    onExportFolderIdsChange([...exportFolderIds, folder.id]);
-                  } else {
-                    onExportFolderIdsChange(exportFolderIds.filter((id) => id !== folder.id));
-                  }
-                }}
-                type="checkbox"
+                checked={exportFolderIds.length === 0}
+                onChange={() => onExportFolderIdsChange([])}
+                type="radio"
               />
-              <span>{path.map((item) => item.name).join(" / ")}</span>
+              <span>Entire collection</span>
             </label>
-          ))}
-        </div>
+            <div className="folder-checks">
+              {folders.map(({ folder, path }) => (
+                <label className="check-row" key={folder.id}>
+                  <input
+                    checked={exportFolderIds.includes(folder.id)}
+                    onChange={(event) => {
+                      if (event.target.checked) {
+                        onExportFolderIdsChange([...exportFolderIds, folder.id]);
+                      } else {
+                        onExportFolderIdsChange(exportFolderIds.filter((id) => id !== folder.id));
+                      }
+                    }}
+                    type="checkbox"
+                  />
+                  <span>{path.map((item) => item.name).join(" / ")}</span>
+                </label>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="status-box">This portable export always contains the entire active collection.</div>
+        )}
         <h3>Options</h3>
         <label className="check-row">
           <input

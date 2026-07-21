@@ -44,6 +44,8 @@ OpenAPI / Swagger / Postman / Insomnia / HAR / .http / cURL
 
 It is intentionally local-first. There is no account requirement, no cloud workspace, and no hosted sync layer. Your workspace, environments, request history, and secrets stay on the machine running the desktop app.
 
+> The published stable release is v1.3.0. The in-progress v1.3.1–v1.5 delivery train adds secret-safety corrections, System/Light/Dark appearance, Import Doctor, route/response helpers, safe re-import, Postman/.http export, and portable OAuth recipes. Its acceptance criteria are tracked in [the delivery plan](docs/V1_3_TO_V1_5_DELIVERY_PLAN.md).
+
 ## Download v1.3.0
 
 | Platform | Package | Download |

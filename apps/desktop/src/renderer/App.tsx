@@ -18,6 +18,7 @@ export function App() {
     importUrl, setImportUrl, isFetchingImport, setIsFetchingImport, importOperations,
     setImportOperations, selectedImportKeys, setSelectedImportKeys, lastImportIndexRef,
     grouping, setGrouping, importError, setImportError, importSummary, setImportSummary, importWarnings, setImportWarnings,
+    importTargetCollectionId, setImportTargetCollectionId, importDiff, setImportDiff,
     exportFormat, setExportFormat, exportFolderIds, setExportFolderIds, includeAllComponents,
     setIncludeAllComponents, includeExamples, setIncludeExamples, pruneUnusedComponents,
     setPruneUnusedComponents, preferSourceOperation, setPreferSourceOperation, savedExportPath,
@@ -91,6 +92,8 @@ export function App() {
         <CollectionsSidebar
           activeCollection={activeCollection}
           onAddApinizerJwtRequest={() => addRequest("apinizer-jwt")}
+          onAddOAuthClientRequest={() => addRequest("oauth-client")}
+          onAddOAuthPasswordRequest={() => addRequest("oauth-password")}
           onAddCollection={addCollection}
           onAddFolder={addFolder}
           onAddJwtRequest={() => addRequest("jwt")}
@@ -109,6 +112,9 @@ export function App() {
             importError={importError}
             importSummary={importSummary}
             importWarnings={importWarnings}
+            importTargetCollectionId={importTargetCollectionId}
+            importDiff={importDiff}
+            collections={workspace.collections}
             importText={importText}
             importUrl={importUrl}
             isFetchingUrl={isFetchingImport}
@@ -126,6 +132,7 @@ export function App() {
             onGroupingChange={setGrouping}
             onImport={handleImport}
             onImportUrlChange={setImportUrl}
+            onImportTargetChange={setImportTargetCollectionId}
             onOpenFile={openImportFile}
             onOpenPostmanFolder={openPostmanFolder}
             onPreview={handlePreviewImport}
@@ -133,6 +140,7 @@ export function App() {
               setPostmanFolderSource(undefined);
               setPostmanFolderPath("");
               setImportWarnings([]);
+              setImportDiff(undefined);
               setImportText(value);
             }}
             postmanFolderPath={postmanFolderPath}

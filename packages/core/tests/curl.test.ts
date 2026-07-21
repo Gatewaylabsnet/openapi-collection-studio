@@ -21,6 +21,23 @@ describe("requestToCurl", () => {
     request.queryParams.push({ id: "q1", key: "status", value: "active", enabled: true });
     expect(requestToCurl(request)).toContain("users?status=active");
   });
+
+  it("renders enabled URL-encoded form fields", () => {
+    const request = createRequest({ name: "Token", method: "POST", url: "https://api.example.com/token" });
+    request.body = {
+      mode: "form",
+      contentType: "application/x-www-form-urlencoded",
+      form: [
+        { id: "grant", key: "grant_type", value: "client_credentials", enabled: true },
+        { id: "secret", key: "client_secret", value: "skip", enabled: false }
+      ]
+    };
+
+    const curl = requestToCurl(request);
+
+    expect(curl).toContain("--data-urlencode 'grant_type=client_credentials'");
+    expect(curl).not.toContain("client_secret");
+  });
 });
 
 describe("parseCurlCommand", () => {

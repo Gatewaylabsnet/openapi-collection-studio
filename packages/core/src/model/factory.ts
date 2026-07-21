@@ -156,6 +156,42 @@ export function createApinizerJwtRequest(): ApiRequest {
   };
 }
 
+export type OAuthTokenGrant = "client_credentials" | "password";
+
+/** A portable OAuth-style token recipe sourced from active-environment variables. */
+export function createOAuthTokenRequest(grant: OAuthTokenGrant = "client_credentials"): ApiRequest {
+  const passwordFields = grant === "password"
+    ? [createKeyValue("username", "{{username}}"), createKeyValue("password", "{{password}}")]
+    : [];
+  const optionalScope = createKeyValue("scope", "{{scope}}");
+  optionalScope.enabled = false;
+  return {
+    ...createRequest({
+      name: grant === "password" ? "OAuth Password Token" : "OAuth Client Credentials Token",
+      method: "POST",
+      url: "{{baseUrl}}/oauth/token"
+    }),
+    description: "Portable OAuth token recipe. Set baseUrl and referenced variables in the active environment; save access_token as accessToken from the response.",
+    headers: [createKeyValue("Content-Type", "application/x-www-form-urlencoded")],
+    body: {
+      mode: "form",
+      contentType: "application/x-www-form-urlencoded",
+      form: [
+        createKeyValue("grant_type", grant),
+        ...passwordFields,
+        createKeyValue("client_id", "{{clientId}}"),
+        createKeyValue("client_secret", "{{clientSecret}}"),
+        optionalScope
+      ]
+    },
+    responseExamples: [{
+      id: createId("res"), name: "Token response", status: 200,
+      headers: [createKeyValue("Content-Type", "application/json")], contentType: "application/json",
+      body: JSON.stringify({ access_token: "...", token_type: "Bearer", expires_in: 3600 }, null, 2)
+    }]
+  };
+}
+
 export function createMultipartField(
   type: MultipartFieldType = "text",
   key = "",

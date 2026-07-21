@@ -47,7 +47,7 @@ export function EnvironmentScreen({
     <section className="environment-layout">
       <aside className="side-panel">
         <div className="pane__header">
-          <h2>Environments</h2>
+          <h2>Connection profiles</h2>
           <button className="icon-button" onClick={onCreateEnvironment} title="New environment" type="button">
             <Plus size={16} />
           </button>
@@ -92,6 +92,9 @@ export function EnvironmentScreen({
                 Delete
               </button>
             </div>
+            <p className="connection-profile-help">
+              A named profile keeps a base URL and variables together. Switch profiles from the top bar without changing your collections.
+            </p>
             <label className="field environment-base-url">
               <span>Environment base URL</span>
               <input

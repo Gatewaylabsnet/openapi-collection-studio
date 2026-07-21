@@ -3,7 +3,7 @@ import {
   createEmptyWorkspace, createEnvironment, createFolder, createId, createJwtRequest,
   createKeyValue, createRequest, checkOpenApiDocument, exportCollectionToOpenApiResult,
   looksLikeCurl, parseCurlCommand, requestToCurl, findFolder, findRequest, flattenRequests,
-  importDocument, importPostmanV3Folder, listOperations, previewImportDocument,
+  applySafeReimport, importDocument, importPostmanV3Folder, listOperations, previewImportDocument, previewSafeReimport,
   previewPostmanV3Folder, relocateFolder, relocateRequest, removeFolder, removeRequest,
   serializeCollectionJson,
   type ApiRequest, type Collection, type Environment, type ExportWarning, type GroupingStrategy,
@@ -22,6 +22,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
     importUrl, setImportUrl, isFetchingImport, setIsFetchingImport, importOperations,
     setImportOperations, selectedImportKeys, setSelectedImportKeys, lastImportIndexRef,
     grouping, setGrouping, importError, setImportError, importSummary, setImportSummary, importWarnings, setImportWarnings,
+    importTargetCollectionId, setImportTargetCollectionId, importDiff, setImportDiff,
     exportFormat, setExportFormat, exportFolderIds, setExportFolderIds, includeAllComponents,
     setIncludeAllComponents, includeExamples, setIncludeExamples, pruneUnusedComponents,
     setPruneUnusedComponents, preferSourceOperation, setPreferSourceOperation, savedExportPath,
@@ -38,6 +39,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
       setImportSummary("");
       setImportError(result.error);
       setImportWarnings([]);
+      setImportDiff(undefined);
       return;
     }
     if (result.content !== undefined) {
@@ -46,6 +48,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
       setImportText(result.content);
       setImportError("");
       setImportWarnings([]);
+      setImportDiff(undefined);
       setImportSummary(result.filePath ? `Loaded ${result.filePath}` : "File loaded.");
     }
   };
@@ -59,6 +62,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
       setImportSummary("");
       setImportError(result.error ?? "The selected folder could not be loaded.");
       setImportWarnings([]);
+      setImportDiff(undefined);
       return;
     }
     try {
@@ -68,6 +72,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
       setPostmanFolderPath(result.folderPath ?? result.source.rootName);
       setImportError("");
       setImportWarnings([]);
+      setImportDiff(undefined);
       setImportSummary(
         `${preview.label} ${preview.version ?? ""} - ${preview.requestCount} requests in ${preview.containerCount} folders`
       );
@@ -75,6 +80,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
       setImportSummary("");
       setImportError(error instanceof Error ? error.message : String(error));
       setImportWarnings([]);
+      setImportDiff(undefined);
     }
   };
 
@@ -86,6 +92,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
     setIsFetchingImport(true);
     setImportError("");
     setImportWarnings([]);
+    setImportDiff(undefined);
     const result = await window.studio.fetchImportUrl(url);
     setIsFetchingImport(false);
     if (result.ok && result.content !== undefined) {
@@ -138,6 +145,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
         const preview = previewPostmanV3Folder(postmanFolderSource);
         const analyzed = importPostmanV3Folder(postmanFolderSource, { grouping });
         setImportWarnings(analyzed.warnings);
+        setImportDiffFor(analyzed.collections[0]);
         setImportSummary(
           `${preview.label} ${preview.version ?? ""} - ${preview.requestCount} requests in ${preview.containerCount} folders`
         );
@@ -145,6 +153,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
         setImportSummary("");
         setImportError(error instanceof Error ? error.message : String(error));
         setImportWarnings([]);
+        setImportDiff(undefined);
       }
       return;
     }
@@ -152,11 +161,13 @@ export function useImportController(state: StudioState, workspaceController: Wor
       try {
         const request = parseCurlCommand(importText);
         setImportWarnings([]);
+        setImportDiff(undefined);
         setImportSummary(`cURL command: ${request.method} ${request.url}`);
       } catch (error) {
         setImportSummary("");
         setImportError(error instanceof Error ? error.message : String(error));
         setImportWarnings([]);
+        setImportDiff(undefined);
       }
       return;
     }
@@ -164,6 +175,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
       const preview = previewImportDocument(importText);
       const analyzed = importDocument(importText, { grouping });
       setImportWarnings(analyzed.warnings);
+      setImportDiffFor(analyzed.collections[0]);
       const version = preview.version ? ` ${preview.version}` : "";
       setImportSummary(
         `${preview.label}${version} ${preview.format.toUpperCase()} - ${preview.requestCount} requests in ${preview.containerCount} ${preview.containerLabel}`
@@ -172,6 +184,7 @@ export function useImportController(state: StudioState, workspaceController: Wor
       setImportSummary("");
       setImportError(error instanceof Error ? error.message : String(error));
       setImportWarnings([]);
+      setImportDiff(undefined);
     }
   };
 
@@ -226,17 +239,29 @@ export function useImportController(state: StudioState, workspaceController: Wor
         throw new Error("The document did not contain an importable collection.");
       }
 
+      const target = importTargetCollectionId
+        ? workspace.collections.find((candidate) => candidate.id === importTargetCollectionId)
+        : undefined;
+      const canUpdate = Boolean(target && imported.collections.length === 1);
+      const diff = canUpdate ? previewSafeReimport(target!, collection) : undefined;
       mutateWorkspace((draft) => {
+        if (canUpdate) {
+          const draftTarget = draft.collections.find((candidate) => candidate.id === target!.id);
+          if (draftTarget) applySafeReimport(draftTarget, collection);
+          return;
+        }
         draft.collections.push(...imported.collections);
         draft.environments.push(...imported.environments);
         if (imported.environments[0]) {
           draft.activeEnvironmentId = imported.environments[0].id;
         }
       });
-      setActiveCollectionId(collection.id);
+      setActiveCollectionId(canUpdate ? target!.id : collection.id);
       setSelectedFolderId(undefined);
       setSelectedRequestId(firstRequestId(collection));
-      setImportSummary(imported.collections.length === 1
+      setImportSummary(canUpdate && diff
+        ? `Updated ${target!.name}: ${diff.matched} matched, ${diff.added} added; ${diff.retained} existing request(s) left untouched.`
+        : imported.collections.length === 1
           ? `Imported ${collection.name}`
           : `Imported ${imported.collections.length} collections`
       );
@@ -252,8 +277,19 @@ export function useImportController(state: StudioState, workspaceController: Wor
     }
   };
 
+  const setImportDiffFor = (incoming: Collection | undefined) => {
+    const target = importTargetCollectionId
+      ? workspace.collections.find((collection) => collection.id === importTargetCollectionId)
+      : undefined;
+    setImportDiff(target && incoming ? previewSafeReimport(target, incoming) : undefined);
+  };
+
   return {
     openImportFile, openPostmanFolder, fetchImportUrl, toggleImportOperation,
-    handlePreviewImport, importCurl, handleImport
+    handlePreviewImport, importCurl, handleImport,
+    setImportTargetCollectionId: (collectionId: string) => {
+      setImportTargetCollectionId(collectionId);
+      setImportDiff(undefined);
+    }
   };
 }

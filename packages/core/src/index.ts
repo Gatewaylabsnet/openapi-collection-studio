@@ -7,6 +7,8 @@ export * from "./importers/document";
 export * from "./exporters/openapi/exportOpenApi";
 export * from "./exporters/openapi/checkOpenApi";
 export * from "./exporters/collection-json/collectionJson";
+export * from "./exporters/portable/postman";
+export * from "./exporters/portable/http";
 export * from "./variables/resolveVariables";
 export * from "./http/prepareHttpRequest";
 export * from "./curl/curl";

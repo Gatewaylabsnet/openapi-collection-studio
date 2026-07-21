@@ -18,6 +18,8 @@ JSON detection runs before YAML/OpenAPI parsing. Unsupported JSON gets a format-
 
 Local `$ref` values are resolved where practical. Remote `$ref` values are retained but never fetched. Operations can be selected before import and grouped by tags, first path segment, or one folder.
 
+Preview runs Import Doctor. Its warnings identify skipped, unsupported, or manual-completion items before the user imports; Preview never writes a collection. When a user explicitly chooses an existing collection as the import destination, safe re-import reports matched, added, and retained requests. It updates matches without deleting existing requests and retains their ID, auth, body, and saved examples.
+
 Multipart text values remain editable. File paths from imported OpenAPI/Swagger/Postman/Insomnia/HAR/cURL content are untrusted: only the base filename is retained as a disabled placeholder and the user must choose the file again through the native picker. Upload IDs, absolute paths, and file bytes are excluded from Collection JSON, OpenAPI, workspace persistence, and complete backups.
 
 ## URL And Environment Rules
@@ -39,6 +41,13 @@ Multipart text values remain editable. File paths from imported OpenAPI/Swagger/
 - Literal examples are opt-in and secret-like values produce warnings.
 - Unused component schemas are pruned by default for scoped exports.
 - Duplicate method/path mappings and invalid variable paths/servers produce visible warnings.
+
+## Portable Export
+
+- **Specfold Collection JSON** is a full native collection document; it always includes the complete active collection.
+- **Postman Collection v2.1 JSON** preserves collection/folder/request hierarchy, supported headers/auth/body modes, and a collection `baseUrl` variable when present.
+- **HTTP file (`.http`)** emits request name comments, method/URL, enabled headers, bearer/API-key header auth, and supported JSON/raw/form bodies. Multipart file grants are intentionally not portable.
+- All full-collection exports scan request auth, values, and response examples for likely literal secrets before saving or copying.
 
 ## Complete Backup
 

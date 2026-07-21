@@ -5,8 +5,14 @@ import {
   createCollection,
   createFolder,
   createJwtRequest,
+  createOAuthTokenRequest,
   createRequest,
+  applySafeReimport,
+  previewSafeReimport,
+  collectCollectionSecretWarnings,
   exportCollectionToOpenApi,
+  exportCollectionToHttpFile,
+  exportCollectionToPostman,
   importApiDocument,
   serializeCollectionJson,
   parseCollectionJson
@@ -16,6 +22,56 @@ const fixture = (path: string) =>
   readFileSync(join(process.cwd(), "fixtures", path), "utf8");
 
 describe("OpenAPI and Swagger import/export", () => {
+  it("provides portable OAuth token recipes", () => {
+    const client = createOAuthTokenRequest("client_credentials");
+    const password = createOAuthTokenRequest("password");
+
+    expect(client.body.form?.map((field) => field.key)).toEqual([
+      "grant_type", "client_id", "client_secret", "scope"
+    ]);
+    expect(password.body.form?.map((field) => field.key)).toContain("username");
+    expect(password.url).toBe("{{baseUrl}}/oauth/token");
+    expect(client.body.form?.find((field) => field.key === "scope")?.enabled).toBe(false);
+  });
+
+  it("exports portable Postman and HTTP representations", () => {
+    const collection = createCollection("Portable");
+    const request = createRequest({ name: "Create", method: "POST", url: "{{baseUrl}}/users" });
+    request.body = { mode: "form", form: [{ id: "kv_1", key: "name", value: "Ada", enabled: true }] };
+    collection.requests.push(request);
+
+    const postman = JSON.parse(exportCollectionToPostman(collection));
+    expect(postman.info.schema).toContain("v2.1.0");
+    expect(postman.item[0].request.body.urlencoded[0]).toMatchObject({ key: "name", value: "Ada" });
+    request.auth = { type: "basic", username: "ada", password: "secret" };
+    const http = exportCollectionToHttpFile(collection);
+    expect(http).toContain("POST {{baseUrl}}/users");
+    expect(http).toContain("Authorization: Basic YWRhOnNlY3JldA==");
+    expect(http.match(/Content-Type: application\/x-www-form-urlencoded/g)).toHaveLength(1);
+  });
+
+  it("safely reimports matching operations without deleting user data", () => {
+    const target = createCollection("Existing");
+    const existing = createRequest({ name: "Old list", method: "GET", url: "/users" });
+    existing.openApi = { method: "get", path: "/users" };
+    existing.auth = { type: "bearer", token: "{{token}}" };
+    existing.responseExamples = [{ id: "response_1", name: "Saved", status: 200, headers: [], body: "{}" }];
+    target.requests.push(existing);
+
+    const incoming = createCollection("Imported");
+    const updated = createRequest({ name: "List users", method: "GET", url: "/users" });
+    updated.openApi = { method: "get", path: "/users" };
+    const added = createRequest({ name: "Get user", method: "GET", url: "/users/{id}" });
+    added.openApi = { method: "get", path: "/users/{id}" };
+    incoming.requests.push(updated, added);
+
+    expect(previewSafeReimport(target, incoming)).toEqual({ matched: 1, added: 1, retained: 0 });
+    expect(applySafeReimport(target, incoming)).toEqual({ matched: 1, added: 1, retained: 0 });
+    expect(target.requests).toHaveLength(2);
+    expect(target.requests[0]).toMatchObject({ id: existing.id, name: "List users", auth: existing.auth });
+    expect(target.requests[0].responseExamples).toEqual(existing.responseExamples);
+  });
+
   it("imports OpenAPI operations grouped by tags", () => {
     const result = importApiDocument(fixture("openapi/openapi-with-tags.yaml"), {
       grouping: "tags"
@@ -149,6 +205,26 @@ describe("OpenAPI and Swagger import/export", () => {
     });
 
     expect(parseCollectionJson(serialized)).toEqual(collection);
+  });
+
+  it("warns before native Collection JSON exposes literal request secrets", () => {
+    const collection = createCollection("Sensitive collection");
+    const request = createRequest({ name: "Get profile", url: "https://api.example.test/profile" });
+    request.auth = { type: "bearer", token: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature" };
+    request.responseExamples.push({
+      id: "response",
+      name: "Token response",
+      status: 200,
+      headers: [],
+      contentType: "application/json",
+      body: '{"access_token":"very-secret-token-value-123456789"}'
+    });
+    collection.requests.push(request);
+
+    const warnings = collectCollectionSecretWarnings(collection);
+
+    expect(warnings.map((warning) => warning.message).join(" ")).toMatch(/bearer token/i);
+    expect(warnings.map((warning) => warning.message).join(" ")).toMatch(/response example/i);
   });
 });
 

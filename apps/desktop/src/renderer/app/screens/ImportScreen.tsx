@@ -1,5 +1,5 @@
 import { Download, FolderPlus, Import, Play } from "lucide-react";
-import type { GroupingStrategy, ImportOperationSummary } from "@openapi-collection-studio/core";
+import type { Collection, GroupingStrategy, ImportOperationSummary, ReimportDiff } from "@openapi-collection-studio/core";
 
 export function ImportScreen({
   importText,
@@ -8,6 +8,9 @@ export function ImportScreen({
   grouping,
   importSummary,
   importWarnings,
+  collections,
+  importTargetCollectionId,
+  importDiff,
   importError,
   operations,
   selectedOperationKeys,
@@ -15,6 +18,7 @@ export function ImportScreen({
   onSelectAllOperations,
   onTextChange,
   onImportUrlChange,
+  onImportTargetChange,
   onFetchUrl,
   onOpenFile,
   onOpenPostmanFolder,
@@ -29,6 +33,9 @@ export function ImportScreen({
   grouping: GroupingStrategy;
   importSummary: string;
   importWarnings: string[];
+  collections: Collection[];
+  importTargetCollectionId: string;
+  importDiff?: ReimportDiff;
   importError: string;
   operations: ImportOperationSummary[];
   selectedOperationKeys: Set<string>;
@@ -36,6 +43,7 @@ export function ImportScreen({
   onSelectAllOperations(selectAll: boolean): void;
   onTextChange(value: string): void;
   onImportUrlChange(value: string): void;
+  onImportTargetChange(collectionId: string): void;
   onFetchUrl(): void;
   onOpenFile(): void;
   onOpenPostmanFolder(): void;
@@ -47,9 +55,6 @@ export function ImportScreen({
   const importDisabled =
     (!importText.trim() && !postmanFolderPath) ||
     (operations.length > 0 && selectedOperationKeys.size === 0);
-  // Safe re-import is introduced in v1.5; keep the panel hidden in v1.4.
-  const importTargetCollectionId = "";
-  const importDiff = undefined as { matched: number; added: number; retained: number } | undefined;
 
   return (
     <section className="import-layout">
@@ -113,6 +118,16 @@ export function ImportScreen({
       </div>
       <aside className="side-panel">
         <h3>Grouping</h3>
+        <label className="field import-target">
+          <span>Import destination</span>
+          <select onChange={(event) => onImportTargetChange(event.target.value)} value={importTargetCollectionId}>
+            <option value="">Create a new collection (recommended)</option>
+            {collections.map((collection) => (
+              <option key={collection.id} value={collection.id}>Update {collection.name} safely</option>
+            ))}
+          </select>
+          <small>Safe update matches operations, adds new ones, and never deletes existing requests.</small>
+        </label>
         {importTargetCollectionId && importDiff && (
           <div className="reimport-diff" role="status">
             <strong>Safe re-import preview</strong>

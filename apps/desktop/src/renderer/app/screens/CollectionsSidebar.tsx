@@ -16,7 +16,9 @@ export function CollectionsSidebar({
   onAddFolder,
   onAddCollection,
   onAddJwtRequest,
-  onAddApinizerJwtRequest
+  onAddApinizerJwtRequest,
+  onAddOAuthClientRequest,
+  onAddOAuthPasswordRequest
 }: {
   workspace: Workspace;
   activeCollection?: Collection;
@@ -30,6 +32,8 @@ export function CollectionsSidebar({
   onAddCollection(): void;
   onAddJwtRequest(): void;
   onAddApinizerJwtRequest(): void;
+  onAddOAuthClientRequest(): void;
+  onAddOAuthPasswordRequest(): void;
 }) {
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const selectedFolderPath =
@@ -143,6 +147,12 @@ export function CollectionsSidebar({
                   type="button"
                 >
                   Apinizer JWT request
+                </button>
+                <button className="new-menu-item new-menu-item--nested" disabled={!activeCollection} onClick={() => runNewAction(onAddOAuthClientRequest)} role="menuitem" type="button">
+                  OAuth client credentials
+                </button>
+                <button className="new-menu-item new-menu-item--nested" disabled={!activeCollection} onClick={() => runNewAction(onAddOAuthPasswordRequest)} role="menuitem" type="button">
+                  OAuth password grant
                 </button>
                 <div className="new-menu-target" title={requestTarget}>
                   Target: {requestTarget}
