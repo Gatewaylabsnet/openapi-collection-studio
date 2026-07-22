@@ -1,6 +1,7 @@
 :root {
   --sidebar-width: 320px;
   --control-height: 34px;
+  --app-font-size: 13px;
   color: #18202c;
   background: #f6f7f9;
   font-family:
@@ -8,6 +9,18 @@
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+:root[data-font-size="compact"] {
+  --app-font-size: 12px;
+}
+
+:root[data-font-size="default"] {
+  --app-font-size: 13px;
+}
+
+:root[data-font-size="large"] {
+  --app-font-size: 15px;
 }
 
 * {
@@ -19,6 +32,7 @@ body {
   min-width: 1100px;
   min-height: 720px;
   background: #f6f7f9;
+  font-size: var(--app-font-size);
 }
 
 button,

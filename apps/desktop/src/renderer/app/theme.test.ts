@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyThemePreference, observeThemePreference } from "./theme";
+import { applyFontSizePreference, applyThemePreference, observeThemePreference } from "./theme";
 
 afterEach(() => {
   document.documentElement.removeAttribute("data-theme");
+  document.documentElement.removeAttribute("data-font-size");
   document.documentElement.style.removeProperty("color-scheme");
   vi.unstubAllGlobals();
 });
@@ -40,5 +41,13 @@ describe("applyThemePreference", () => {
     expect(document.documentElement.dataset.theme).toBe("dark");
     stop();
     expect(media.removeEventListener).toHaveBeenCalledWith("change", expect.any(Function));
+  });
+});
+
+describe("applyFontSizePreference", () => {
+  it("stores the selected text density on the document root", () => {
+    applyFontSizePreference("compact");
+
+    expect(document.documentElement.dataset.fontSize).toBe("compact");
   });
 });

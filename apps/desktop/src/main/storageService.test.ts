@@ -50,7 +50,7 @@ describe("storage service", () => {
     const paths = storagePaths(userData);
     const service = createStorageService({ paths, secureStorage: secureStorage(), appVersion: "1.1.0" });
     const original = workspaceWithSecret("Original", "top-secret-token");
-    await service.saveSettings({ requestTimeoutMs: 1234, maxResponseBytes: 2048, allowInsecureTls: true, theme: "dark" });
+    await service.saveSettings({ requestTimeoutMs: 1234, maxResponseBytes: 2048, allowInsecureTls: true, theme: "dark", fontSize: "large" });
     const backupPath = join(userData, "complete-backup.json");
     await service.writeBackup(backupPath, original);
 
@@ -72,7 +72,7 @@ describe("storage service", () => {
     const paths = storagePaths(userData);
     await mkdir(userData, { recursive: true });
     const oldWorkspace = createEmptyWorkspace("Before restore");
-    const oldSettings = { requestTimeoutMs: 30000, maxResponseBytes: 1024, allowInsecureTls: false, theme: "system" };
+    const oldSettings = { requestTimeoutMs: 30000, maxResponseBytes: 1024, allowInsecureTls: false, theme: "system", fontSize: "compact" };
     await writeFile(paths.workspace, JSON.stringify(oldWorkspace), "utf8");
     await writeFile(paths.settings, JSON.stringify(oldSettings), "utf8");
 
@@ -96,7 +96,7 @@ describe("storage service", () => {
       appVersion: "1.1.0",
       secretsIncluded: true,
       workspace: createEmptyWorkspace("After restore"),
-      settings: { requestTimeoutMs: 1, maxResponseBytes: 2, allowInsecureTls: true, theme: "dark" }
+      settings: { requestTimeoutMs: 1, maxResponseBytes: 2, allowInsecureTls: true, theme: "dark", fontSize: "default" }
     };
 
     await expect(service.restoreBackupText(JSON.stringify(backup))).rejects.toThrow("previous data was restored");

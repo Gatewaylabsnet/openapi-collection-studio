@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { createCollection, createEmptyWorkspace, createKeyValue, createRequest } from "@openapi-collection-studio/core";
 import { App } from "./App";
-import { applyThemePreference } from "./app/theme";
+import { applyFontSizePreference, applyThemePreference } from "./app/theme";
 import "./styles/global.css";
 
 // Dev-only fallback: when the renderer is opened in a plain browser (no
@@ -35,7 +35,8 @@ if (browserPreview && typeof window.studio === "undefined") {
       requestTimeoutMs: 30_000,
       maxResponseBytes: 10 * 1024 * 1024,
       allowInsecureTls: false,
-      theme: "system"
+      theme: "system",
+      fontSize: "compact"
     }),
     saveSettings: async (settings) => settings,
     sendRequest: async (request) => {
@@ -85,6 +86,7 @@ if (browserPreview && typeof window.studio === "undefined") {
 async function bootstrap(): Promise<void> {
   const settings = await window.studio.loadSettings();
   applyThemePreference(settings.theme);
+  applyFontSizePreference(settings.fontSize);
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <App />

@@ -3,10 +3,6 @@
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   }
 
-  .editor-layout {
-    grid-template-columns: minmax(360px, 1fr) 320px;
-  }
-
   .request-line {
     grid-template-columns: 104px minmax(0, 1fr) auto;
   }

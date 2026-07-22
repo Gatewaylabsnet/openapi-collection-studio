@@ -58,17 +58,24 @@ export function RequestWorkspace({
   onSaveResponseExample(response: ResponseState): void;
   environmentVariableNames: string[];
 }) {
+  const requestFolderId = activeRequest ? activeRequestFolderId(activeCollection, activeRequest.id) : undefined;
+  const requestFolder = requestFolderId
+    ? folderOptions.find((option) => option.folder.id === requestFolderId)?.folder
+    : undefined;
+  // Tree selection may change while a request stays open. The preview must use
+  // the request's own folder chain, not the incidental selected row.
+  const routingFolder = activeRequest ? requestFolder : activeFolder;
   const routing = activeCollection
     ? baseUrlRouting(
         activeCollection,
-        activeFolder,
+        routingFolder,
         folderOptions,
         activeEnvironmentBaseUrl,
         activeEnvironmentName
       )
     : undefined;
   const routePreview = activeRequest
-    ? resolveRoutePreview(activeRequest, activeEnvironment, activeCollection, activeFolder, folderOptions)
+    ? resolveRoutePreview(activeRequest, activeEnvironment, activeCollection, routingFolder, folderOptions)
     : undefined;
 
   return (
@@ -110,12 +117,12 @@ export function RequestWorkspace({
               )}
               <small>
                 {activeFolder
-                  ? "Applies to this folder and its children. Clear it to inherit."
+                  ? "Applies to this folder and its children. Clear it to inherit the resolved route above."
                   : "Used by this collection unless a folder overrides it."}
               </small>
             </label>
-            <div className="base-url-effective" role="note">
-              <span>Effective base URL</span>
+            <div className="base-url-panel__summary" role="note">
+              <span>Resolved route</span>
               <code title={routing?.effective}>{routing?.effective || "Not configured"}</code>
               <small>{routing?.source}</small>
             </div>

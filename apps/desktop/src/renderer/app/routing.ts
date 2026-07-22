@@ -16,7 +16,11 @@ export function inheritedBaseUrl(
   environmentBaseUrl?: string
 ): string {
   const path = folderOptions.find((item) => item.folder.id === folder.id)?.path ?? [];
-  const inherited = folderBaseUrl(path.slice(0, -1)) ?? collection.baseUrl ?? environmentBaseUrl;
+  const inherited = firstDefinedBaseUrl(
+    folderBaseUrl(path.slice(0, -1)),
+    collection.baseUrl,
+    environmentBaseUrl
+  );
   return inherited ? `Inherited: ${inherited}` : "https://api.example.com/proxy";
 }
 
@@ -28,8 +32,8 @@ export function baseUrlRouting(
   environmentName?: string
 ): { effective: string; source: string } {
   if (!folder) {
-    const collectionValue = collection.baseUrl?.trim() ?? "";
-    const environmentValue = environmentBaseUrl?.trim() ?? "";
+    const collectionValue = normalizeBaseUrl(collection.baseUrl);
+    const environmentValue = normalizeBaseUrl(environmentBaseUrl);
     const effective = collectionValue || environmentValue;
     return {
       effective,
@@ -42,7 +46,7 @@ export function baseUrlRouting(
   }
 
   const path = folderOptions.find((item) => item.folder.id === folder.id)?.path ?? [folder];
-  const ownValue = folder.baseUrl?.trim() ?? "";
+  const ownValue = normalizeBaseUrl(folder.baseUrl);
   if (ownValue) return { effective: ownValue, source: `${folder.name} folder override` };
 
   const inheritedFolder = [...path.slice(0, -1)].reverse().find((candidate) => candidate.baseUrl?.trim());
@@ -50,8 +54,8 @@ export function baseUrlRouting(
     return { effective: inheritedFolder.baseUrl.trim(), source: `Inherited from ${inheritedFolder.name}` };
   }
 
-  const collectionValue = collection.baseUrl?.trim() ?? "";
-  const environmentValue = environmentBaseUrl?.trim() ?? "";
+  const collectionValue = normalizeBaseUrl(collection.baseUrl);
+  const environmentValue = normalizeBaseUrl(environmentBaseUrl);
   const effective = collectionValue || environmentValue;
   return {
     effective,
@@ -61,6 +65,14 @@ export function baseUrlRouting(
         ? `Inherited from ${environmentName ?? "active"} environment`
         : "No folder or collection base URL is configured."
   };
+}
+
+function normalizeBaseUrl(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function firstDefinedBaseUrl(...values: Array<string | undefined>): string {
+  return values.map(normalizeBaseUrl).find(Boolean) ?? "";
 }
 
 export function resolveRoutePreview(

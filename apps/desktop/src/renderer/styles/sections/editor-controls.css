@@ -1,5 +1,5 @@
 .request-panel {
-  border-right: 1px solid #dce1e8;
+  border-bottom: 1px solid #dce1e8;
 }
 
 .request-line {
@@ -31,9 +31,9 @@
 
 .base-url-panel {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.75fr);
-  gap: 10px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.8fr);
+  gap: 12px;
+  align-items: end;
   margin-bottom: 10px;
 }
 
@@ -42,18 +42,19 @@
   font-size: 11px;
 }
 
-.base-url-effective {
+.base-url-panel__summary {
   display: grid;
-  align-content: center;
-  gap: 4px;
+  align-content: start;
+  gap: 3px;
   min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid #dce1e8;
-  border-radius: 8px;
-  background: #f8fafc;
+  min-height: 76px;
+  padding: 10px 12px;
+  border-left: 3px solid #78a9e8;
+  border-radius: 0 8px 8px 0;
+  background: #f3f8ff;
 }
 
-.base-url-effective > span {
+.base-url-panel__summary > span {
   color: #64748b;
   font-size: 11px;
   font-weight: 700;
@@ -61,7 +62,7 @@
   letter-spacing: 0.04em;
 }
 
-.base-url-effective code {
+.base-url-panel__summary code {
   overflow: hidden;
   color: #1e293b;
   font-size: 12px;

@@ -35,7 +35,8 @@ function studioMock(workspace = sampleWorkspace()): StudioApi {
       requestTimeoutMs: 30_000,
       maxResponseBytes: 10 * 1024 * 1024,
       allowInsecureTls: false,
-      theme: "system" as const
+      theme: "system" as const,
+      fontSize: "compact" as const
     })),
     saveSettings: vi.fn(async (settings) => settings),
     sendRequest: vi.fn(async () => ({
@@ -89,6 +90,16 @@ describe("renderer workflows", () => {
     await user.click(screen.getByRole("button", { name: "Restore backup" }));
     await waitFor(() => expect(api.restoreBackup).toHaveBeenCalledTimes(1));
     expect(confirm).toHaveBeenCalledTimes(3);
+  });
+
+  it("saves the text size preference from Settings", async () => {
+    const api = studioMock();
+    const { user } = await renderApp(api);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Text size" }), "large");
+
+    await waitFor(() => expect(api.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ fontSize: "large" })));
+    expect(document.documentElement.dataset.fontSize).toBe("large");
   });
 
   it("does not allow the last environment to be deleted", async () => {

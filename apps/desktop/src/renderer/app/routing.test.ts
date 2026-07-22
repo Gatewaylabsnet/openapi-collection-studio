@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createCollection, createEnvironment, createFolder, createRequest } from "@openapi-collection-studio/core";
 import { createEnvironmentVariable } from "./helpers";
-import { resolveRoutePreview } from "./routing";
+import { baseUrlRouting, resolveRoutePreview } from "./routing";
 
 describe("resolveRoutePreview", () => {
   it("uses the nearest folder base URL and resolves variables before Send", () => {
@@ -29,6 +29,23 @@ describe("resolveRoutePreview", () => {
     expect(resolveRoutePreview(request, undefined, undefined, undefined, [])).toEqual({
       url: "{{baseUrl}}/users/{{id}}",
       missing: ["baseUrl", "id"]
+    });
+  });
+
+  it("accepts an inherited environment base URL for a relative request", () => {
+    const collection = createCollection("Gateway");
+    collection.baseUrl = "   ";
+    const request = createRequest({ name: "Get", method: "GET", url: "/users" });
+    const environment = createEnvironment("Dev");
+    environment.variables = [createEnvironmentVariable("baseUrl", "https://environment.example/api")];
+
+    expect(baseUrlRouting(collection, undefined, [], "https://environment.example/api", "Dev")).toEqual({
+      effective: "https://environment.example/api",
+      source: "Inherited from Dev environment"
+    });
+    expect(resolveRoutePreview(request, environment, collection, undefined, [])).toEqual({
+      url: "https://environment.example/api/users",
+      missing: []
     });
   });
 });

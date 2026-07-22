@@ -12,7 +12,7 @@ import {
 } from "@openapi-collection-studio/core";
 import { firstRequestId } from "./helpers";
 import { DEFAULT_SETTINGS } from "./types";
-import { applyThemePreference, observeThemePreference } from "./theme";
+import { applyFontSizePreference, applyThemePreference, observeThemePreference } from "./theme";
 import type { AppSettings, ExportFormat, RequestTab, ResponseHistoryEntry, ResponseState, SaveStatus, Screen } from "./types";
 
 export function useStudioState() {
@@ -86,6 +86,10 @@ export function useStudioState() {
     applyThemePreference(settings.theme);
     return observeThemePreference(settings.theme);
   }, [settings.theme]);
+
+  useEffect(() => {
+    applyFontSizePreference(settings.fontSize);
+  }, [settings.fontSize]);
 
   useEffect(() => {
     if (!loaded) {

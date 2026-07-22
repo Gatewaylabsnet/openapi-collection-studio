@@ -1,4 +1,4 @@
-import type { ThemePreference } from "./types";
+import type { FontSizePreference, ThemePreference } from "./types";
 
 /** Apply the preference as a resolved palette so legacy styles can share one selector. */
 export function applyThemePreference(preference: ThemePreference): void {
@@ -23,4 +23,9 @@ export function observeThemePreference(preference: ThemePreference): () => void 
   const onChange = () => applyThemePreference("system");
   media.addEventListener?.("change", onChange);
   return () => media.removeEventListener?.("change", onChange);
+}
+
+/** Apply the user's preferred text density without changing layout scale. */
+export function applyFontSizePreference(preference: FontSizePreference): void {
+  document.documentElement.dataset.fontSize = preference;
 }

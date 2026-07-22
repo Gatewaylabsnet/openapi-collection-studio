@@ -50,7 +50,19 @@ export function SettingsScreen({
             <option value="dark">Dark</option>
           </select>
         </label>
-        <p>System follows your operating system. Your choice is saved in this local workspace profile.</p>
+        <label className="field">
+          <span>Text size</span>
+          <select
+            aria-label="Text size"
+            onChange={(event) => onChange({ fontSize: event.target.value as AppSettings["fontSize"] })}
+            value={settings.fontSize}
+          >
+            <option value="compact">Compact</option>
+            <option value="default">Default</option>
+            <option value="large">Large</option>
+          </select>
+        </label>
+        <p>Appearance choices are saved in this local workspace profile. Compact is the default for a denser editor.</p>
         <h3>Data management</h3>
         <p>Backups include collections, environments, settings, and secret values. Store exported files securely.</p>
         <div className="settings-actions">
